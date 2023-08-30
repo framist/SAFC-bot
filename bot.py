@@ -18,14 +18,8 @@ from telegram.ext import (
 
 
 """
-school_cate: 学校类别
-university: 学校
-department: 学院
-supervisor: 导师
-
-description: 评价 (主属性)
-date: 日期
-other_info: 其他信息 比如来源 counts
+demo bot
+后续将采用 rust 重构
 """
 
 # Enable logging
@@ -125,11 +119,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_keyboard = [list(item) for item in cursor.fetchall()]
 
     await update.message.reply_text(
-        "嗨！我是大学生反诈中心的客服机器人。"
+        "嗨！我是大学生反诈中心的客服机器人 👋\n"
         "_目前仍为早期开发版本_ 问题敬请反馈；*越墙不易，延迟丢包敬请见谅*，可 /start 重启再试试\n"
         "发送 /cancel 来停止此次对话\n\n"
         "您可以在树结构中查询，然后发起对客体的评价。\n\n"
-        "您想查询的学校类别是？您可以直接输入或者在下面的键盘选择框中选择（如果是在 PC 端群聊中使用，键盘选择框弹出可能有 bug）",
+        "您想查询的学校类别是？您可以直接输入或者在下面的键盘选择框中选择\n"
+        "_键盘选择框中没有的也可以直接输入来新建；如果是上个类别本身请选择或输入 `self`。下同_"
+        "（如果是在 PC 端群聊中使用，键盘选择框弹出可能有 bug）",
         reply_markup=ReplyKeyboardMarkup(
             _convert_to_3_columns(reply_keyboard), one_time_keyboard=True, input_field_placeholder="学校类别？"
         ),
@@ -153,8 +149,7 @@ async def choose_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     await update.message.reply_text(
         f"已选择：{context.user_data}\n"
-        "您想查询的「学校」是？您可以直接输入或者在下面的键盘选择框中选择。"
-        "如果是其本身请选择或输入 `self` ",
+        "您想查询的「学校」是？您可以直接输入或者在下面的键盘选择框中选择。\n",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder="学校？"
         )
@@ -176,8 +171,7 @@ async def choose_department(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     await update.message.reply_text(
         f"已选择：{context.user_data}\n"
-        "您想查询的「学院」是？您可以直接输入或者在下面的键盘选择框中选择。"
-        "如果是其本身请选择或输入 `self` ",
+        "您想查询的「学院」是？您可以直接输入或者在下面的键盘选择框中选择。",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder="学院？"
         ),
@@ -305,11 +299,12 @@ async def read_or_comment_cb(update: Update, context: ContextTypes.DEFAULT_TYPE)
                  context.user_data["object_id"])
             )
             conn.commit()
-            await query.edit_message_text(
-                f"已选择：{context.user_data}\n"
-                f"评价客体已增加！感谢您的贡献 🌷",
-                reply_markup=build_keyboard()
-            )
+        await query.edit_message_text(
+            f"已选择：{context.user_data}\n"
+            f"评价客体已增加！感谢您的贡献 🌷",
+            reply_markup=build_keyboard()
+        )
+        logging.info("评价客体已增加！")
     else:
         await query.edit_message_text(
             f"已选择：{context.user_data}\n"
@@ -368,6 +363,7 @@ async def publish_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "评价已发布！感谢您的贡献 🌷",
         reply_markup=build_keyboard()
     )
+    logging.info("评价已发布！")
     return SUPERVISOR
 
 
