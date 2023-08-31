@@ -23,7 +23,7 @@ date: 日期
 _表示后续可变
 
 【客体表】objects
-_学校类别 < 学校 < 学院 < 导师 - _日期 - object (key)
+_学校类别 < 学校 < 学院 < 导师 - _日期 - _信息 - object (key)
           | 包含学院本身 self 下同
 
 object：
@@ -53,7 +53,7 @@ def json_to_sqlite():
     # ['school_cate', 'university', 'department', 'supervisor', 'rate', 'description', 'date', 'counts']
 
     # 连接到数据库（如果不存在则创建）
-    with sqlite3.connect('data_2NF.db') as conn:
+    with sqlite3.connect('db.sqlite') as conn:
         cursor = conn.cursor()
 
         # 创建 objects 表格
@@ -64,6 +64,7 @@ def json_to_sqlite():
                 department TEXT NOT NULL,
                 supervisor TEXT NOT NULL,
                 date TEXT NOT NULL,
+                info TEXT,
                 object TEXT NOT NULL,
                 PRIMARY KEY (object)
             )  
@@ -116,7 +117,7 @@ def json_to_sqlite():
 json_to_sqlite()
 
 # 信息展示
-with sqlite3.connect('data_2NF.db') as conn:
+with sqlite3.connect('db.sqlite') as conn:
     cursor = conn.cursor()
     # 所有的学校类别
     cursor.execute("SELECT DISTINCT school_cate FROM objects")

@@ -53,7 +53,7 @@ BOT_INFO = """# 大学生反诈中心
 为了最大保护信息安全与隐私，大学生反诈中心（SAFC）基于 telegram 平台，包含以下功能
 
 * telegram 机器人 @SAFC_bot —— 学校、专业、学院、课程、导师的交叉评价与查询
-* telegram 群组社区 t.me/SAFC_group —— 公告与交流平台
+* telegram 群组社区 @SAFC_group —— 公告与交流平台
 
 本平台遵守几点为主旨：
 
@@ -64,7 +64,7 @@ BOT_INFO = """# 大学生反诈中心
 ## 隐私
 
 - 为防止滥用，你的 uid 可能会被临时储存在内存中，最多 1 日，除此之外不会记录任何个人信息。
-- 「发布人一次性密语」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论。其非必选项，且仅会储存其加盐哈希。
+- 「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论。其非必选项，且仅会储存其加盐哈希。
 - 我们默认 Telegram 是可信及安全的
 - 早期开发结束后，代码与数据将完全开源
 
@@ -88,7 +88,7 @@ BOT_HELP = """大学生反诈中心（SAFT）的机器人
 /info - 信息
 """
 
-DATA_PATH = "./data_2NF.db"
+DATA_PATH = "./db.sqlite"
 
 SAFC_ASLT = 'SAFC_salt'
 
@@ -100,8 +100,6 @@ def _convert_to_n_columns(data, n):
     return [data[i:i + n] for i in range(0, len(data), n)]
 
 # 纵向表格转换为 3 列纵向表格
-
-
 def _convert_to_3_columns(data):
     return _convert_to_n_columns(data, 3)
 
@@ -120,11 +118,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await update.message.reply_text(
         "嗨！我是大学生反诈中心的客服机器人 👋\n"
-        "_目前仍为早期开发版本_ 问题敬请反馈；*越墙不易，延迟丢包敬请见谅*，可 /start 重启再试试\n"
+        "_目前仍为早期开发版本_ 问题敬请反馈；*越墙不易，延迟丢包敬请见谅，可/cancel /start 重启再试试*\n"
         "发送 /cancel 来停止此次对话\n\n"
-        "您可以在树结构中查询，然后发起对客体的评价。\n\n"
-        "您想查询的学校类别是？您可以直接输入或者在下面的键盘选择框中选择\n"
-        "_键盘选择框中没有的也可以直接输入来新建；如果是上个类别本身请选择或输入 `self`。下同_"
+        "您可以先查询客体，然后查看或发起对客体的评价。\n\n"
+        "您想查询或评价的「学校类别」是？您可以直接输入或者在下面的键盘选择框中选择\n\n"
+        "_键盘选择框中没有的也可以直接输入来新建；如果是上个类别本身请选择或输入 `self`。下同_\n"
         "（如果是在 PC 端群聊中使用，键盘选择框弹出可能有 bug）",
         reply_markup=ReplyKeyboardMarkup(
             _convert_to_3_columns(reply_keyboard), one_time_keyboard=True, input_field_placeholder="学校类别？"
@@ -149,7 +147,7 @@ async def choose_university(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     await update.message.reply_text(
         f"已选择：{context.user_data}\n"
-        "您想查询的「学校」是？您可以直接输入或者在下面的键盘选择框中选择。\n",
+        "您想查询的「学校」是？\n",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder="学校？"
         )
@@ -171,7 +169,7 @@ async def choose_department(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     await update.message.reply_text(
         f"已选择：{context.user_data}\n"
-        "您想查询的「学院」是？您可以直接输入或者在下面的键盘选择框中选择。",
+        "您想查询的「学院」是？",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder="学院？"
         ),
@@ -194,7 +192,7 @@ async def choose_supervisor(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         reply_keyboard = [list(item) for item in cursor.fetchall()]
     await update.message.reply_text(
         f"已选择：{context.user_data}\n"
-        "您想查询的「导师或其他客体」是？您可以直接输入或者在下面的键盘选择框中选择。",
+        "您想查询的「导师或其他客体」是？",
         reply_markup=ReplyKeyboardMarkup(
             _convert_to_3_columns(reply_keyboard), one_time_keyboard=True, input_field_placeholder="导师？"
         ),
@@ -241,7 +239,7 @@ def build_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text='➕ 增加评价', callback_data=str(OBJECT_COMMENT)),
         ],
         [
-            InlineKeyboardButton(text='🤗 详细 (不可用)',callback_data=str(OBJECT_INFO)),
+            InlineKeyboardButton(text='🤗 详细信息',callback_data=str(OBJECT_INFO)),
             InlineKeyboardButton(text='🏁 结束', callback_data=str(OBJECT_END)),
         ],
     ]
@@ -267,7 +265,8 @@ async def read_or_comment_cb(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         await query.edit_message_text(
             f"已选择：{context.user_data}\n"
-            f"此导师的评价是:\n\n{ans}\n==========\n抱歉！对评价的评价暂不可用",
+            f"此导师的评价是:\n\n{ans}",
+            # "\n==========\n抱歉！对评价的评价暂不可用",
             # parse_mode = ParseMode.HTML
             reply_markup=build_keyboard()
         )
@@ -326,9 +325,9 @@ async def add_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     context.user_data["comment_id"] = comment_id
     await update.message.reply_text(
         f"您的评价是```\n{comment}\n```\nid: {comment_id} | data: {date}\n"
-        "确认发布？如确认请输入「发布人一次性密语」，之后将发布评价;"
+        "确认发布？如确认请输入「发布人 OTP」，之后将发布评价;"
         "取消请 /cancel —— 您只能在此取消！\n"
-        "Ps.「发布人一次性密语」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论，如不需要，输入随机值即可"
+        "Ps.「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论，如不需要，输入随机值即可"
     )
     return PUBLISH
 
@@ -337,7 +336,7 @@ async def publish_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """增加评价处理函数"""
     s = update.message.text
     comment_id = context.user_data["comment_id"]
-    # 发布人签名 = sha256( 评价 id | md5(salt + 发布人一次性密语) )
+    # 发布人签名 = sha256( 评价 id | md5(salt + 发布人 OTP) )
     sign = hashlib.sha256(f'{comment_id}'.encode() +
                           hashlib.md5(f"{SAFC_ASLT}{s}".encode()).digest()).hexdigest()
 
@@ -359,7 +358,7 @@ async def publish_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                        )
 
     await update.message.reply_text(
-        f"您的一次性密语已销毁，生成签名 {sign}\n"
+        f"您的 OTP 已销毁，生成签名 {sign}\n"
         "评价已发布！感谢您的贡献 🌷",
         reply_markup=build_keyboard()
     )
