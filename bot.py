@@ -18,7 +18,7 @@ from telegram.ext import (
 
 
 """
-demo bot
+demo bot 0.0
 后续将采用 rust 重构
 """
 
@@ -93,8 +93,6 @@ DATA_PATH = "./db.sqlite"
 SAFC_ASLT = 'SAFC_salt'
 
 # 纵向表格转换为 n 列纵向表格
-
-
 def _convert_to_n_columns(data, n):
     data = [item[0] for item in data]
     return [data[i:i + n] for i in range(0, len(data), n)]
@@ -336,9 +334,9 @@ async def publish_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """增加评价处理函数"""
     s = update.message.text
     comment_id = context.user_data["comment_id"]
-    # 发布人签名 = sha256( 评价 id | md5(salt + 发布人 OTP) )
+    # 发布人签名 = sha256( 评价 id | sha256(salt + 发布人 OTP) )
     sign = hashlib.sha256(f'{comment_id}'.encode() +
-                          hashlib.md5(f"{SAFC_ASLT}{s}".encode()).digest()).hexdigest()
+                          hashlib.sha256(f"{SAFC_ASLT}{s}".encode()).digest()).hexdigest()
 
     # 添加至数据库
     with sqlite3.connect(DATA_PATH) as conn:
@@ -413,7 +411,6 @@ def main() -> None:
             COMMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_comment)],
             PUBLISH: [MessageHandler(filters.TEXT & ~filters.COMMAND, publish_comment)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)]
     )
 
     application.add_handler(conv_handler)

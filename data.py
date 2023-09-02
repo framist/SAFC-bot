@@ -35,7 +35,7 @@ object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评
 来源分类：admin, urfire, telegram...
 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like） ...
 评价 id = sha256( object | 评价 | 日期 )[:16] 注意，这个也包含去重的性质
-发布人签名 可为空 = sha256( 评价 id | md5(salt + 发布人一次性密语) )
+发布人签名 可为空 = sha256( 评价 id | sha256(salt + 发布人一次性密语) )
 salt：SAFC_salt
 
 TODO 区块链？
