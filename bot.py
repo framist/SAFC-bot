@@ -411,6 +411,7 @@ def main() -> None:
             COMMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_comment)],
             PUBLISH: [MessageHandler(filters.TEXT & ~filters.COMMAND, publish_comment)],
         },
+        fallbacks=[CommandHandler("cancel", cancel)]
     )
 
     application.add_handler(conv_handler)
