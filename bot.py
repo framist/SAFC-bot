@@ -60,6 +60,7 @@ BOT_INFO = """# 大学生反诈中心
 * 出发：共享，开放，自由的精神；我为人人，人人为我的理念
 * 技术：密码朋克，尽可能地做好隐私保护、数据与人身安全；数据共享代码开源，相互监督共进。
 * 定位：综合大学生所需要的功能，不光包括最基本的导师评价和查询功能，还能对学校、专业、学院、课程、学生、已有的评价进行评价；另外提供一个交流平台。
+* 只有评价，没有评分，每个客体都不能由单独的分数来决定
 
 ## 隐私
 
@@ -84,6 +85,7 @@ https://gitee.com/wdwdwd123/RateMySupervisor.git
 
 BOT_HELP = """大学生反诈中心（SAFT）的机器人
 /start - 开始
+/cancel - 终止对话，无响应的时候就试试看这个吧
 /help - 帮助
 /info - 信息
 """
@@ -248,7 +250,7 @@ async def read_or_comment_cb(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Parses the CallbackQuery and updates the message text."""
     query = update.callback_query
     obj = context.user_data["object_id"]
-    await query.answer()
+    await query.answer()    # ? 为什么需要这行
     if query.data == str(OBJECT_READ):
         # 获取 object 的评价
         with sqlite3.connect(DATA_PATH) as conn:

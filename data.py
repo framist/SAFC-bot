@@ -27,16 +27,16 @@ _学校类别 < 学校 < 学院 < 导师 - _日期 - _信息 - object (key)
           | 包含学院本身 self 下同
 
 object：
-sha256( 学校 | 学院 | 导师 )[:16]
+sha256( 学校 | 学院 | 导师 )[:8]
 
 【评价表】comments
 object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评价 id (key)
 
 来源分类：admin, urfire, telegram...
 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like） ...
-评价 id = sha256( object | 评价 | 日期 )[:16] 注意，这个也包含去重的性质
-发布人签名 可为空 = sha256( 评价 id | sha256(salt + 发布人一次性密语) )
-salt：SAFC_salt
+评价 id = sha256( object | 评价 | 日期 )[:8] 注意，这个也包含去重的性质
+发布人签名 可为空 = sha256( 评价 id | sha256(salt + 发布人一次性密语).hex )
+salt: SAFC_salt
 
 TODO 区块链？
 """
