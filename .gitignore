@@ -1,4 +1,7 @@
 .vscode
-*.db
-db.*
-*.json
+
+db.sqlite
+comments_data.json
+
+# rust
+/target

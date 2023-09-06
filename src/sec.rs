@@ -1,0 +1,31 @@
+use hex;
+use sha2::{Digest, Sha256};
+
+pub fn hash_object_id(university: &String, department: &String, supervisor: &String) -> String {
+    let s = format!("{}{}{}", university, department, supervisor);
+    hex::encode(&Sha256::digest(s.as_bytes())[..8])
+}
+
+/// 评价 id = sha256( object | 评价 | 日期 )[:16] 注意，这个也包含去重的性质
+pub fn hash_comment_id(object_id: &String, comment: &String, date: &String) -> String {
+    let s = format!("{}{}{}", object_id, comment, date);
+    hex::encode(&Sha256::digest(s.as_bytes())[..8])
+}
+
+pub fn hash_author_sign(comment_id: &String, otp: &String) -> String {
+    const SAFC_ASLT: &str = "SAFC_salt";
+    let a = hex::encode(&Sha256::digest(format!("{}{}", SAFC_ASLT, otp).as_bytes()));
+    hex::encode(&Sha256::digest(format!("{}{}", comment_id, a).as_bytes()))
+}
+
+#[test]
+fn test_calc_object_id() {
+    assert_eq!(
+        "bf3d2da3a9bfc528".to_string(),
+        hash_object_id(
+            &"university".to_string(),
+            &"department".to_string(),
+            &"supervisor".to_string()
+        )
+    )
+}
