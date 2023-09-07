@@ -1,6 +1,12 @@
-# 大学生反诈中心
+<div align="center">
+  <font size="50">🏛️</font>
+  <!-- <img width="150" heigth="150" src="./doc/asserts/icon.png"> -->
+  <h1>SAFC - bot</h1>
+  <b>🧪 in developing</b><br/>
+  <i>社群，保护，开放</i><br/>
+</div>
 
-*社群，保护，开放*
+# 大学生反诈中心 SAFC
 
 ## 背景
 
@@ -10,12 +16,12 @@
 
 ## 目的
 
-除了警惕那些专业的反诈人员，那些大学生最容易信任的客体才是最危险的
+除了警惕那些专业的反诈人员，那些大学生最容易信任的客体才是最危险的。
 
 为了最大保护信息安全与隐私，大学生反诈中心（SAFC）基于 telegram 平台，包含以下功能
 
-* telegram 机器人 @SAFC_bot —— 学校、专业、学院、课程、导师的交叉评价与查询
-* telegram 群组社区 @SAFC_group —— 公告与交流平台
+* telegram 机器人 [@SAFC_bot](https://t.me/SAFC_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
+* telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台
 
 本平台遵守几点为主旨：
 
@@ -76,4 +82,7 @@ remindee-bot
   - [ ] 嵌套评价
   - [ ] 词云？关键字提取？
   - [ ] 数据汇报
-
+  - [ ] 抗攻击
+  - [ ] 数据定时上传备份
+- web
+  - [ ] 待定
