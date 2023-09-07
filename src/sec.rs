@@ -14,8 +14,8 @@ pub fn hash_comment_id(object_id: &String, comment: &String, date: &String) -> S
 
 pub fn hash_author_sign(comment_id: &String, otp: &String) -> String {
     const SAFC_ASLT: &str = "SAFC_salt";
-    let a = hex::encode(&Sha256::digest(format!("{}{}", SAFC_ASLT, otp).as_bytes()));
-    hex::encode(&Sha256::digest(format!("{}{}", comment_id, a).as_bytes()))
+    let a = hex::encode(Sha256::digest(format!("{}{}", SAFC_ASLT, otp).as_bytes()));
+    hex::encode(Sha256::digest(format!("{}{}", comment_id, a).as_bytes()))
 }
 
 #[test]

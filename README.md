@@ -1,5 +1,5 @@
 <div align="center">
-  <font size="50">🏛️</font>
+  <h1>🏛️</h1>
   <!-- <img width="150" heigth="150" src="./doc/asserts/icon.png"> -->
   <h1>SAFC - bot</h1>
   <b>🧪 in developing</b><br/>
@@ -85,4 +85,4 @@ remindee-bot
   - [ ] 抗攻击
   - [ ] 数据定时上传备份
 - web
-  - [ ] 待定
+  - [ ] 待定 actix-web?

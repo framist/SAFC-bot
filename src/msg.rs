@@ -89,9 +89,9 @@ pub enum ObjectOp {
     Return(i32),
 }
 
-impl Into<String> for ObjectOp {
-    fn into(self) -> String {
-        format!("{:?}", self)
+impl From<ObjectOp> for String {
+    fn from(val: ObjectOp) -> Self {
+        format!("{:?}", val)
     }
 }
 

@@ -27,7 +27,7 @@ pub fn find_school_cate() -> Result<Vec<String>> {
     let mut stmt = conn.prepare("SELECT DISTINCT school_cate FROM objects")?;
     let rows = stmt.query_map([], |row| row.get::<usize, String>(0))?;
 
-    rows.map(|x| x).collect::<Result<Vec<_>, _>>()
+    rows.collect::<Result<Vec<_>, _>>()
 }
 
 pub fn find_university(s_c: &String) -> Result<Vec<String>> {
@@ -37,7 +37,7 @@ pub fn find_university(s_c: &String) -> Result<Vec<String>> {
         conn.prepare("SELECT DISTINCT university FROM objects WHERE school_cate=(?1)")?;
     let rows = stmt.query_map([s_c], |row| row.get(0))?;
 
-    rows.map(|x| x).collect::<Result<Vec<_>, _>>()
+    rows.collect::<Result<Vec<_>, _>>()
 }
 
 pub fn find_department(s_c: &String, university: &String) -> Result<Vec<String>> {
@@ -48,7 +48,7 @@ pub fn find_department(s_c: &String, university: &String) -> Result<Vec<String>>
         school_cate=(?1) AND university=(?2)",
     )?;
     let rows = stmt.query_map([s_c, university], |row| row.get::<_, String>(0))?;
-    rows.map(|x| x).collect::<Result<Vec<_>, _>>()
+    rows.collect::<Result<Vec<_>, _>>()
 }
 
 pub fn find_supervisor(
@@ -63,7 +63,7 @@ pub fn find_supervisor(
         school_cate=(?1) AND university=(?2)  AND department=(?3)",
     )?;
     let rows = stmt.query_map([s_c, university, department], |row| row.get::<_, String>(0))?;
-    rows.map(|x| x).collect::<Result<Vec<_>, _>>()
+    rows.collect::<Result<Vec<_>, _>>()
 }
 
 pub fn find_object(
@@ -81,7 +81,7 @@ pub fn find_object(
     let rows = stmt.query_map([supervisor, university, department], |row| {
         row.get::<_, String>(0)
     })?;
-    rows.map(|x| x).collect::<Result<Vec<_>, _>>()
+    rows.collect::<Result<Vec<_>, _>>()
 }
 
 pub fn get_comment(object_id: &String) -> Result<Vec<String>> {
@@ -98,7 +98,7 @@ pub fn get_comment(object_id: &String) -> Result<Vec<String>> {
             row.get::<_, String>(0)?
         ))
     })?;
-    rows.map(|x| x).collect::<Result<Vec<_>, _>>()
+    rows.collect::<Result<Vec<_>, _>>()
 }
 
 use chrono;

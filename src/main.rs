@@ -1,12 +1,8 @@
-mod db;
-mod msg;
-mod sec;
+use safc::db::*;
+use safc::msg::*;
+use safc::sec::*;
+
 use std::str::FromStr;
-
-use crate::db::*;
-use crate::msg::*;
-use crate::sec::*;
-
 use teloxide::types::ParseMode::MarkdownV2;
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
@@ -391,11 +387,11 @@ async fn read_or_comment_cb(
     // https://core.telegram.org/bots/api#callbackquery
     bot.answer_callback_query(q.id).await?;
     if let Some(op) = &q.data {
-        match ObjectOp::from_str(&op)? {
+        match ObjectOp::from_str(op)? {
             ObjectOp::Read => {
                 // 阅读评价
                 let coms = get_comment(&object_id)?;
-                let text = if coms.len() > 0 {
+                let text = if !coms.is_empty() {
                     coms.join("\n---\n").replace("<br>", "\n")
                 } else {
                     "🈳 此客体暂无评价！".to_string()
@@ -593,6 +589,6 @@ fn debug_init() {
 /// 一维向量转换为 n 列纵向键盘
 fn _convert_to_n_columns_keyboard(data: Vec<String>, n: usize) -> Vec<Vec<KeyboardButton>> {
     data.chunks(n)
-        .map(|chunk| chunk.iter().map(|x| KeyboardButton::new(x)).collect())
+        .map(|chunk| chunk.iter().map(KeyboardButton::new).collect())
         .collect()
 }
