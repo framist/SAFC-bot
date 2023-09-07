@@ -1,0 +1,165 @@
+# TODO
+name: release
+on:
+  push:
+    tags:
+      - "*"
+jobs:
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create artifacts directory
+        run: mkdir artifacts
+
+      - name: Get the release version from the tag
+        if: env.SL_VERSION == ''
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
+        run: |
+          echo "::set-env name=SL_VERSION::${GITHUB_REF#refs/tags/}"
+          echo "version is: ${{ env.SL_VERSION }}"
+
+      - name: Create GitHub release
+        id: release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.SL_VERSION }}
+          release_name: ${{ env.SL_VERSION }}
+
+      - name: Save release upload URL to artifact
+        run: echo "${{ steps.release.outputs.upload_url }}" > artifacts/release-upload-url
+
+      - name: Save version number to artifact
+        run: echo "${{ env.SL_VERSION }}" > artifacts/release-version
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: artifacts
+          path: artifacts
+
+  build-release:
+    name: build-release
+    needs: ["create-release"]
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO: cargo
+      TARGET_FLAGS: ""
+      TARGET_DIR: ./target
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
+        build: [linux, macos, armv7]
+        include:
+          - build: linux
+            os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+          - build: macos
+            os: macos-latest
+            rust: stable
+            target: x86_64-apple-darwin
+          - build: armv7
+            os: ubuntu-latest
+            rust: stable
+            target: armv7-unknown-linux-gnueabihf
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+
+      - name: Use Cross
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
+        run: |
+          cargo install cross
+          echo "::set-env name=CARGO::cross"
+          echo "::set-env name=TARGET_FLAGS::--target ${{ matrix.target }}"
+          echo "::set-env name=TARGET_DIR::./target/${{ matrix.target }}"
+
+      - name: Show command used for Cargo
+        run: |
+          echo "cargo command is: ${{ env.CARGO }}"
+          echo "target flag is: ${{ env.TARGET_FLAGS }}"
+          echo "target dir is: ${{ env.TARGET_DIR }}"
+
+      - name: Get release download URL
+        uses: actions/download-artifact@v1
+        with:
+          name: artifacts
+          path: artifacts
+
+      - name: Set release upload URL and release version
+        shell: bash
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
+        run: |
+          release_upload_url="$(cat artifacts/release-upload-url)"
+          echo "::set-env name=RELEASE_UPLOAD_URL::$release_upload_url"
+          echo "release upload url: $RELEASE_UPLOAD_URL"
+          release_version="$(cat artifacts/release-version)"
+          echo "::set-env name=RELEASE_VERSION::$release_version"
+          echo "release version: $RELEASE_VERSION"
+
+      - name: Build release binary
+        run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
+
+      - name: Strip release binary
+        if: startsWith(matrix.target, 'armv7') != true
+        run: strip "target/${{ matrix.target }}/release/remindee-bot"
+
+      - name: Strip ARM release binary
+        if: startsWith(matrix.target, 'armv7')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils-arm-linux-gnueabihf
+          arm-linux-gnueabihf-strip "target/${{ matrix.target }}/release/remindee-bot"
+
+      - name: Build archive
+        shell: bash
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
+        run: |
+          outdir=${{ env.TARGET_DIR }}
+          staging="remindee-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
+          mkdir -p "$staging"
+
+          cp "target/${{ matrix.target }}/release/remindee-bot" "$staging/"
+          tar czf "$staging.tar.gz" "$staging"
+          echo "::set-env name=ASSET::$staging.tar.gz"
+
+      - name: Upload release archive
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ env.RELEASE_UPLOAD_URL }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
+
+  publish:
+    name: Publish tagged release on crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

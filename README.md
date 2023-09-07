@@ -37,15 +37,39 @@
 
 ## 参考
 
-初始数据来源：
-
+<details>
+<summary>初始数据来源：</summary>
 https://github.com/pengp25/RateMySupervisor
 
 https://gitee.com/wdwdwd123/RateMySupervisor
+</details>
+
+<details>
+<summary>参考项目：</summary>
+开发参考： 
+https://github.com/magnickolas/remindee-bot
+</details>
+
+
 
 # 开发
 
-## todos
+## 快速开始
+
+1. Install [Rust].
+2. Setup your bot with [@botfather](https://t.me/botfather).
+3. Clone this repository.
+4. Run `cargo run` from the repository directory.
+5. Send a message to your bot with `/start` command.
+6. Enjoy!
+
+```console
+export TELOXIDE_TOKEN=<BOT TOKEN e.g. 123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
+export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
+remindee-bot
+```
+
+## TODOs
 
 - tg bot 功能
   - [ ] 模糊/快速 搜索

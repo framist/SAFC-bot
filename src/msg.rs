@@ -108,7 +108,6 @@ pub fn build_op_keyboard() -> InlineKeyboardMarkup {
     ])
 }
 
-
 #[test]
 fn my_test() {
     use std::str::FromStr;

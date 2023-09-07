@@ -1,7 +1,7 @@
 use crate::sec::*;
 use rusqlite::{params, Connection, Result};
 
-const DB_PATH: &str = "/home/framist/Desktop/tg_studio/SAFC_bot/db.sqlite";
+const DB_PATH: &str = "./db.sqlite"; // TODO
 
 /// 来源分类：admin, urfire, telegram...
 use strum_macros::{Display, EnumString};
@@ -16,7 +16,6 @@ pub enum SourceCate {
     #[strum(serialize = "web")]
     Web,
 }
-
 
 fn _db_open() -> Result<Connection> {
     Connection::open(DB_PATH)
@@ -176,8 +175,8 @@ fn my_test() {
     println!("{:#?}", get_comment(&"b148b44fd82fda41".to_string()));
     // add_object_to_database(
     // &"schoolcate".to_string(),
-    // &"university".to_string(), 
-    // &"department".to_string(), 
+    // &"university".to_string(),
+    // &"department".to_string(),
     // &"supervisor".to_string()
     // ).unwrap();
 }

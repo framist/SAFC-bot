@@ -4,4 +4,4 @@ db.sqlite
 comments_data.json
 
 # rust
-/target
+/target/

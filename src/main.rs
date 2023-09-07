@@ -77,7 +77,6 @@ enum Command {
     Status,
 }
 
-
 #[tokio::main]
 async fn main() {
     debug_init();
@@ -202,7 +201,8 @@ async fn cancel_command(bot: Bot, dialogue: MyDialogue, msg: Message) -> Handler
 }
 
 async fn status_command(bot: Bot, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, TgResponse::NotImplemented.to_string()).await?;
+    bot.send_message(msg.chat.id, TgResponse::NotImplemented.to_string())
+        .await?;
     Ok(())
 }
 
@@ -372,8 +372,6 @@ async fn read_or_comment(
     Ok(())
 }
 
-
-
 /// 解析 CallbackQuery 并更新消息文本。
 async fn read_or_comment_cb(
     bot: Bot,
@@ -481,7 +479,8 @@ async fn read_or_comment_cb(
             ObjectOp::Info => {
                 let text = format!(
                     "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
-                    {}", TgResponse::NotImplemented.to_string()
+                    {}",
+                    TgResponse::NotImplemented.to_string()
                 );
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text)
@@ -498,9 +497,7 @@ async fn read_or_comment_cb(
                     })
                     .await?; // 更新会话状态
             }
-            _ => {
-                
-            }
+            _ => {}
         }
     }
 

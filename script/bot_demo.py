@@ -19,6 +19,7 @@ from telegram.ext import (
 
 """
 demo bot 0.0
+已经弃用的早期 demo
 后续将采用 rust 重构
 """
 
