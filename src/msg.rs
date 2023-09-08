@@ -5,18 +5,17 @@ use teloxide::types::InlineKeyboardMarkup;
 
 use serde::{Deserialize, Serialize};
 
-const BOT_INFO: &str = r#"# *大学生反诈中心*
+const BOT_INFO: &str = r#"*大学生反诈中心*
 
 _社群，保护，开放_
 
 自从最初的导师评价网（urfire）关闭，时至今日，一批一批的新导师评价数据分享平台的迭起兴衰，最终都落于 404 或收费闭塞。
-不知是何等阻力，让受过欺骗的学生和亟需信息的学生散若渺茫星火。
-故建此平台与机器人，革新方式，坚持“社群，保护，开放”的理念，信奉密码朋克、开源精神，愿此和谐共赢地持久性发展传承下去。
+不知是何等阻力，让受过欺骗的学生和亟需信息的学生散若渺茫星火。故建此平台与机器人，革新方式，坚持“社群，保护，开放”的理念，信奉||密码朋克||、开源精神，愿此和谐共赢地持久性发展传承下去。
 
-- telegram 机器人 [@SAFC_bot](https://t.me/SAFC_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
-- telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台
+*telegram 机器人* @SAFC\_bot —— 学校、专业、学院、课程、导师的交叉评价与查询
+*telegram 群组社区* @SAFC\_group —— 公告与交流平台
 
-[项目主页](https://github.com/framist/SAFC-bot)
+[GitHub 项目主页](https://github.com/framist/SAFC-bot)
 
 "#;
 
