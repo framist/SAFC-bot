@@ -1146,6 +1146,8 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "rusqlite",
+ "serde",
+ "serde_json",
  "sha2",
  "strum",
  "strum_macros",

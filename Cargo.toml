@@ -29,6 +29,9 @@ hex = "0.4"
 strum = { version = "0.25", features = ["derive"] }
 strum_macros = "0.25"
 chrono = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# serde_qs = "0.12"
 # `bundled` causes us to automatically compile and link in an up to date
 # version of SQLite for you. This avoids many common build issues, and
 # avoids depending on the version of SQLite on the users system (or your

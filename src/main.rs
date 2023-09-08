@@ -2,7 +2,7 @@ use safc::db::*;
 use safc::msg::*;
 use safc::sec::*;
 
-use std::str::FromStr;
+use serde_json;
 use teloxide::types::ParseMode::MarkdownV2;
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
@@ -15,45 +15,6 @@ use teloxide::{
 
 type MyDialogue = Dialogue<State, InMemStorage<State>>;
 type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
-#[derive(Clone, Default)]
-pub enum State {
-    #[default]
-    Start,
-    SchoolCate,
-    University {
-        school_cate: String,
-    },
-    Department {
-        school_cate: String,
-        university: String,
-    },
-    Supervisor {
-        school_cate: String,
-        university: String,
-        department: String,
-    },
-    Read {
-        school_cate: String,
-        university: String,
-        department: String,
-        supervisor: String,
-        object_id: String,
-    },
-    Comment {
-        school_cate: String,
-        university: String,
-        department: String,
-        supervisor: String,
-        object_id: String,
-    },
-    Publish {
-        object_id: String,
-        comment: String,
-        comment_id: String,
-        date: String,
-    },
-}
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -99,13 +60,15 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
 
     // 命令
     let command_handler = teloxide::filter_command::<Command, _>()
-        .branch(
-            case![State::Start].branch(case![Command::Start].endpoint(start)), // 只有 start 状态下才能用 /start
-        )
+        // .branch(
+        //     case![State::Start].branch(case![Command::Start].endpoint(start)), // 只有 start 状态下才能用 /start
+        // )
+        .branch(case![Command::Start].endpoint(start))
         .branch(case![Command::Help].endpoint(help_command))
         .branch(case![Command::Cancel].endpoint(cancel_command))
         .branch(case![Command::Info].endpoint(info_command))
-        .branch(case![Command::Status].endpoint(status_command));
+        .branch(case![Command::Status].endpoint(status_command))
+        .branch(dptree::endpoint(invalid_command));
 
     // 消息
     let message_handler = Update::filter_message()
@@ -149,16 +112,18 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(dptree::endpoint(invalid_state));
 
     // 回调
-    let callback_query_handler = Update::filter_callback_query().branch(
-        case![State::Read {
-            school_cate,
-            university,
-            department,
-            supervisor,
-            object_id
-        }]
-        .endpoint(read_or_comment_cb),
-    );
+    let callback_query_handler = Update::filter_callback_query()
+        .branch(
+            case![State::Read {
+                school_cate,
+                university,
+                department,
+                supervisor,
+                object_id
+            }]
+            .endpoint(read_or_comment_cb),
+        )
+        .branch(dptree::endpoint(invalid_callback_query));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
         // .branch(Message::filter_text().branch(message_handler)) // TODO
@@ -178,6 +143,7 @@ async fn help_command(bot: Bot, msg: Message) -> HandlerResult {
 async fn info_command(bot: Bot, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, TgResponse::Info.to_string())
         .reply_to_message_id(msg.id)
+        .parse_mode(MarkdownV2)
         .await?;
     Ok(())
 }
@@ -209,6 +175,18 @@ async fn invalid_state(bot: Bot, msg: Message) -> HandlerResult {
     Ok(())
 }
 
+async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
+    bot.send_message(
+        msg.chat.id,
+        format!("❎ 错误命令 - usage: \n{}", Command::descriptions()),
+    )
+    .await?;
+    log::warn!("invalid_state - Unable to handle the message.");
+    Ok(())
+}
+
+
+
 /// 开始对话，并向用户询问他们的 school_cate。
 async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     let data = find_school_cate()?;
@@ -224,11 +202,7 @@ async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
 /// 存储选定的 school_cate，并询问 university。
 async fn choose_university(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     if let Some(s_c) = msg.text().map(ToOwned::to_owned) {
-        let keyboard = _convert_to_n_columns_keyboard(find_university(&s_c)?, 1);
-        bot.send_message(msg.chat.id, format!("🧭 {s_c}\n您想查询的「学校」是："))
-            .reply_markup(KeyboardMarkup::new(keyboard))
-            .reply_to_message_id(msg.id)
-            .await?;
+        choose_university_msg(&s_c, &bot, &msg).await?;
         dialogue
             .update(State::University { school_cate: s_c })
             .await?; // 更新会话状态
@@ -240,6 +214,15 @@ async fn choose_university(bot: Bot, dialogue: MyDialogue, msg: Message) -> Hand
     Ok(())
 }
 
+async fn choose_university_msg(s_c: &String, bot: &Bot, msg: &Message) -> HandlerResult {
+    let keyboard = _convert_to_n_columns_keyboard(find_university(s_c)?, 2);
+    bot.send_message(msg.chat.id, format!("🧭 {s_c}\n您想查询的「学校」是："))
+        .reply_markup(KeyboardMarkup::new(keyboard).input_field_placeholder("学校？".to_string()))
+        .reply_to_message_id(msg.id)
+        .await?;
+    Ok(())
+}
+
 /// 存储选定的 university 并要求一个 department。
 async fn choose_department(
     bot: Bot,
@@ -248,14 +231,7 @@ async fn choose_department(
     msg: Message,
 ) -> HandlerResult {
     if let Some(university) = msg.text().map(ToOwned::to_owned) {
-        let keyboard = _convert_to_n_columns_keyboard(find_department(&s_c, &university)?, 1);
-        bot.send_message(
-            msg.chat.id,
-            format!("🧭 {s_c} 🏫 {university}\n您想查询的「学院」是："),
-        )
-        .reply_markup(KeyboardMarkup::new(keyboard))
-        .reply_to_message_id(msg.id)
-        .await?;
+        choose_department_msg(&s_c, &university, &bot, &msg).await?;
         dialogue
             .update(State::Department {
                 school_cate: s_c,
@@ -269,6 +245,23 @@ async fn choose_department(
     Ok(())
 }
 
+async fn choose_department_msg(
+    s_c: &String,
+    university: &String,
+    bot: &Bot,
+    msg: &Message,
+) -> HandlerResult {
+    let keyboard = _convert_to_n_columns_keyboard(find_department(s_c, university)?, 1);
+    bot.send_message(
+        msg.chat.id,
+        format!("🧭 {s_c} 🏫 {university}\n您想查询的「学院」是："),
+    )
+    .reply_markup(KeyboardMarkup::new(keyboard).input_field_placeholder("学院？".to_string()))
+    .reply_to_message_id(msg.id)
+    .await?;
+    Ok(())
+}
+
 /// 存储所选部门并选择 客体
 async fn choose_supervisor(
     bot: Bot,
@@ -277,15 +270,7 @@ async fn choose_supervisor(
     msg: Message,
 ) -> HandlerResult {
     if let Some(department) = msg.text().map(ToOwned::to_owned) {
-        let keyboard =
-            _convert_to_n_columns_keyboard(find_supervisor(&s_c, &university, &department)?, 3);
-        bot.send_message(
-            msg.chat.id,
-            format!("🧭 {s_c} 🏫 {university} 🏢 {department}\n您想查询的「导师等客体」是："),
-        )
-        .reply_markup(KeyboardMarkup::new(keyboard))
-        .reply_to_message_id(msg.id)
-        .await?;
+        choose_supervisor_msg(&s_c, &university, &department, &bot, &msg).await?;
         dialogue
             .update(State::Supervisor {
                 school_cate: s_c,
@@ -297,6 +282,25 @@ async fn choose_supervisor(
         bot.send_message(msg.chat.id, TgResponse::RetryErrNone.to_string())
             .await?;
     }
+    Ok(())
+}
+
+async fn choose_supervisor_msg(
+    school_cate: &String,
+    university: &String,
+    department: &String,
+    bot: &Bot,
+    msg: &Message,
+) -> HandlerResult {
+    let keyboard =
+        _convert_to_n_columns_keyboard(find_supervisor(school_cate, university, department)?, 3);
+    bot.send_message(
+        msg.chat.id,
+        format!("🧭 {school_cate} 🏫 {university} 🏢 {department}\n您想查询的「导师等客体」是："),
+    )
+    .reply_markup(KeyboardMarkup::new(keyboard).input_field_placeholder("客体？".to_string()))
+    .reply_to_message_id(msg.id)
+    .await?;
     Ok(())
 }
 
@@ -320,8 +324,14 @@ async fn read_or_comment(
                     ),
                 )
                 .reply_markup(InlineKeyboardMarkup::new([[
-                    InlineKeyboardButton::callback("➕ 增加", ObjectOp::Add),
-                    InlineKeyboardButton::callback("🏁 结束", ObjectOp::End),
+                    InlineKeyboardButton::callback(
+                        "➕ 增加",
+                        serde_json::to_string(&ObjectOp::Add).unwrap(),
+                    ),
+                    InlineKeyboardButton::callback(
+                        "🏁 结束",
+                        serde_json::to_string(&ObjectOp::End).unwrap(),
+                    ),
                 ]]))
                 .reply_to_message_id(msg.id)
                 .await?;
@@ -387,7 +397,7 @@ async fn read_or_comment_cb(
     // https://core.telegram.org/bots/api#callbackquery
     bot.answer_callback_query(q.id).await?;
     if let Some(op) = &q.data {
-        match ObjectOp::from_str(op)? {
+        match serde_json::from_str(&op)? {
             ObjectOp::Read => {
                 // 阅读评价
                 let coms = get_comment(&object_id)?;
@@ -493,10 +503,49 @@ async fn read_or_comment_cb(
                     })
                     .await?; // 更新会话状态
             }
-            _ => {}
+            ObjectOp::ReturnU => {
+                choose_university_msg(&school_cate, &bot, &q.message.unwrap()).await?;
+                dialogue.update(State::University { school_cate }).await?;
+            }
+            ObjectOp::ReturnD => {
+                choose_department_msg(&school_cate, &university, &bot, &q.message.unwrap()).await?;
+                dialogue
+                    .update(State::Department {
+                        school_cate,
+                        university,
+                    })
+                    .await?;
+            }
+            ObjectOp::ReturnS => {
+                choose_supervisor_msg(
+                    &school_cate,
+                    &university,
+                    &department,
+                    &bot,
+                    &q.message.unwrap(),
+                )
+                .await?;
+                dialogue
+                    .update(State::Supervisor {
+                        school_cate,
+                        university,
+                        department,
+                    })
+                    .await?;
+            }
         }
     }
 
+    Ok(())
+}
+
+
+async fn invalid_callback_query(bot: Bot, q: CallbackQuery,) -> HandlerResult {
+    bot.answer_callback_query(q.id).await?;
+    if let Some(Message { id, chat, .. }) = q.message {
+        bot.edit_message_text(chat.id, id, "❎ 对话过期")
+            .await?;
+    }
     Ok(())
 }
 

@@ -3,49 +3,20 @@
 use teloxide::types::InlineKeyboardButton;
 use teloxide::types::InlineKeyboardMarkup;
 
-const BOT_INFO: &str = r#"# 大学生反诈中心
+use serde::{Deserialize, Serialize};
 
-*社群，保护，开放*
+const BOT_INFO: &str = r#"# *大学生反诈中心*
 
-## 背景
+_社群，保护，开放_
 
 自从最初的导师评价网（urfire）关闭，时至今日，一批一批的新导师评价数据分享平台的迭起兴衰，最终都落于 404 或收费闭塞。
 不知是何等阻力，让受过欺骗的学生和亟需信息的学生散若渺茫星火。
 故建此平台与机器人，革新方式，坚持“社群，保护，开放”的理念，信奉密码朋克、开源精神，愿此和谐共赢地持久性发展传承下去。
 
-## 目的
+- telegram 机器人 [@SAFC_bot](https://t.me/SAFC_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
+- telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台
 
-除了警惕那些专业的反诈人员，那些大学生最容易信任的客体才是最危险的
-
-为了最大保护信息安全与隐私，大学生反诈中心（SAFC）基于 telegram 平台，包含以下功能
-
-* telegram 机器人 @SAFC_bot —— 学校、专业、学院、课程、导师的交叉评价与查询
-* telegram 群组社区 @SAFC_group —— 公告与交流平台
-
-本平台遵守几点为主旨：
-
-* 出发：共享，开放，自由的精神；我为人人，人人为我的理念
-* 技术：密码朋克，尽可能地做好隐私保护、数据与人身安全；数据共享代码开源，相互监督共进。
-* 定位：综合大学生所需要的功能，不光包括最基本的导师评价和查询功能，还能对学校、专业、学院、课程、学生、已有的评价进行评价；另外提供一个交流平台。
-
-## 隐私
-
-- 为防止滥用，你的 uid 可能会被临时储存在内存中，最多 1 日，除此之外不会记录任何个人信息。
-- 「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论。其非必选项，且仅会储存其加盐哈希。
-- 我们默认 Telegram 是可信及安全的
-- 早期开发结束后，代码与数据将完全开源
-
-## 发展
-
-目前敏捷性开发，以功能上线时间为先，后续需要大量的开发重构。
-
-## 参考
-
-初始数据来源：
-
-https://github.com/pengp25/RateMySupervisor
-
-https://gitee.com/wdwdwd123/RateMySupervisor.git
+[项目主页](https://github.com/framist/SAFC-bot)
 
 "#;
 
@@ -77,47 +48,144 @@ impl ToString for TgResponse {
     }
 }
 
-// TODO 使用序列化与反序列化实现 代替 EnumString
-use strum_macros::{Display, EnumString};
-#[derive(Debug, EnumString, Display)] // ?
+/// 流程
+/// 这个数据结构写得太烂了，有待优化
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub enum State {
+    #[default]
+    Start,
+    SchoolCate,
+    University {
+        school_cate: String,
+    },
+    Department {
+        school_cate: String,
+        university: String,
+    },
+    Supervisor {
+        school_cate: String,
+        university: String,
+        department: String,
+    },
+    Read {
+        school_cate: String,
+        university: String,
+        department: String,
+        supervisor: String,
+        object_id: String,
+    },
+    Comment {
+        school_cate: String,
+        university: String,
+        department: String,
+        supervisor: String,
+        object_id: String,
+    },
+    Publish {
+        object_id: String,
+        comment: String,
+        comment_id: String,
+        date: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ObjectOp {
     Read,
     Commet,
     Info,
     End,
     Add,
-    Return(i32),
+    // 最长只能 64 字符，所以选择这种 hack 的方法，有待改进
+    ReturnU,
+    ReturnD,
+    ReturnS,
 }
 
 impl From<ObjectOp> for String {
     fn from(val: ObjectOp) -> Self {
-        format!("{:?}", val)
+        serde_json::to_string(&val).unwrap()
     }
 }
 
+// impl TryFrom<String> for ObjectOp {
+//     type Error = serde_json::Error;
+//     fn try_from(value: String) -> Result<Self, Self::Error> {
+//         serde_json::from_str(&value)
+//     }
+// }
+
+impl From<String> for ObjectOp {
+    fn from(value: String) -> Self {
+        serde_json::from_str(&value).unwrap()
+    }
+}
+
+use serde_json;
+
 pub fn build_op_keyboard() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new([
-        [
-            InlineKeyboardButton::callback("👀 查看评价", ObjectOp::Read),
-            InlineKeyboardButton::callback("💬 增加评价", ObjectOp::Commet),
+        vec![
+            InlineKeyboardButton::callback(
+                "👀 查看评价",
+                serde_json::to_string(&ObjectOp::Read).unwrap(),
+            ),
+            InlineKeyboardButton::callback(
+                "💬 增加评价",
+                serde_json::to_string(&ObjectOp::Commet).unwrap(),
+            ),
         ],
-        [
-            InlineKeyboardButton::callback("🤗 详细信息", ObjectOp::Info),
-            InlineKeyboardButton::callback("🏁 结束", ObjectOp::End),
+        vec![
+            InlineKeyboardButton::callback(
+                "🤗 详细信息",
+                serde_json::to_string(&ObjectOp::Info).unwrap(),
+            ),
+            InlineKeyboardButton::callback(
+                "🏁 结束",
+                serde_json::to_string(&ObjectOp::End).unwrap(),
+            ),
+        ],
+        vec![
+            InlineKeyboardButton::callback(
+                "↩️ 🏫",
+                serde_json::to_string(&ObjectOp::ReturnU)
+                .unwrap(),
+            ),
+            InlineKeyboardButton::callback(
+                "↩️ 🏢",
+                serde_json::to_string(&ObjectOp::ReturnD)
+                .unwrap(),
+            ),
+            InlineKeyboardButton::callback(
+                "↩️ 👔",
+                serde_json::to_string(&ObjectOp::ReturnS)
+                .unwrap(),
+            ),
         ],
     ])
 }
 
 #[test]
 fn my_test() {
-    use std::str::FromStr;
-    println!("{:?}", ObjectOp::Return(2));
-    match ObjectOp::from_str("Return").unwrap() {
-        ObjectOp::Read => {}
-        ObjectOp::Commet => {}
-        ObjectOp::Info => todo!(),
-        ObjectOp::End => todo!(),
-        ObjectOp::Add => todo!(),
-        ObjectOp::Return(i) => println!("Return{i}"),
-    }
+    println!("{}", serde_json::to_string(&ObjectOp::Read).unwrap());
+    // println!(
+    //     "{}",
+    //     serde_json::to_string(&ObjectOp::Return(State::Start)).unwrap()
+    // );
+    // println!(
+    //     "{}",
+    //     serde_json::to_string(&ObjectOp::Return(State::University {
+    //         school_cate: "101".to_string()
+    //     }))
+    //     .unwrap()
+    // );
+    // println!(
+    //     "{:#?}",
+    //     InlineKeyboardButton::callback(
+    //         "🏁 结束",
+    //         ObjectOp::Return(State::University {
+    //             school_cate: "101".to_string()
+    //         })
+    //     )
+    // );
 }
