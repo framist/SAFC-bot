@@ -16,9 +16,10 @@ use teloxide::{
 type MyDialogue = Dialogue<State, InMemStorage<State>>;
 type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
-#[derive(BotCommands, Clone)]
+#[derive(BotCommands, Clone, PartialEq, Debug)]
 #[command(
     rename_rule = "lowercase",
+    // parse_with = "split",
     description = "这是大学生反诈中心（SAFT）的机器人\n支持以下命令："
 )]
 enum Command {
@@ -32,6 +33,10 @@ enum Command {
     Info,
     #[command(description = "统计与状态（暂不可用）")]
     Status,
+    #[command(description = "搜索（暂不可用）/find <客体>")]
+    Find(String),
+    #[command(description = "评价（暂不可用）/comment <id>")]
+    Comment(String),
 }
 
 #[tokio::main]
@@ -67,7 +72,9 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(case![Command::Help].endpoint(help_command))
         .branch(case![Command::Cancel].endpoint(cancel_command))
         .branch(case![Command::Info].endpoint(info_command))
-        .branch(case![Command::Status].endpoint(status_command))
+        .branch(case![Command::Status].endpoint(unable_command))
+        .branch(case![Command::Find(arg)].endpoint(unable_command))
+        .branch(case![Command::Comment(arg)].endpoint(unable_command))
         .branch(dptree::endpoint(invalid_command));
 
     // 消息
@@ -162,15 +169,15 @@ async fn cancel_command(bot: Bot, dialogue: MyDialogue, msg: Message) -> Handler
     Ok(())
 }
 
-async fn status_command(bot: Bot, msg: Message) -> HandlerResult {
+async fn unable_command(bot: Bot, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, TgResponse::NotImplemented.to_string())
         .await?;
     Ok(())
 }
 
 async fn invalid_state(bot: Bot, msg: Message) -> HandlerResult {
-    bot.send_message(msg.chat.id, "❎ 错误流程 - Type /help to see the usage.")
-        .await?;
+    // bot.send_message(msg.chat.id, "❎ 错误流程 - Type /help to see the usage.")
+    //     .await?;
     log::warn!("invalid_state - Unable to handle the message.");
     Ok(())
 }
@@ -181,7 +188,7 @@ async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
         format!("❎ 错误命令 - usage: \n{}", Command::descriptions()),
     )
     .await?;
-    log::warn!("invalid_state - Unable to handle the message.");
+    log::warn!("invalid_state - Unable to handle the command");
     Ok(())
 }
 

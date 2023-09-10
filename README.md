@@ -4,7 +4,7 @@
   <h1>SAFC - bot</h1>
   <b>🧪 in developing</b><br/>
   <i>社群，保护，开放</i><br/>
-  <a href="https://t.me/SAFC_bot">Telegram 机器人</a> | <a href="https://t.me/SAFC_bak_bot">备份机器人</a> | <a href="https://t.me/SAFC_group">群组社区</a><br/>
+  <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | <a href="https://t.me/SAFC_bak_bot">备份机器人</a> | <a href="https://t.me/SAFC_group">群组社区</a><br/>
 </div>
 
 # 大学生反诈中心 SAFC
@@ -21,7 +21,7 @@
 
 为了最大保护信息安全与隐私，大学生反诈中心（SAFC）基于 Telegram 平台，包含以下功能
 
-* Telegram 机器人 [@SAFC_bot](https://t.me/SAFC_bot) [备份](https://t.me/SAFC_bak_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
+* Telegram 机器人 ~~[@SAFC_bot](https://t.me/SAFC_bot)~~ 备份：[@SAFC_bak_bot](https://t.me/SAFC_bak_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
 * Telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台
 
 本平台遵守几点为主旨：
@@ -73,7 +73,7 @@ https://github.com/magnickolas/remindee-bot
 ```console
 export TELOXIDE_TOKEN=<BOT TOKEN e.g. 123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
 export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
-remindee-bot
+SAFC_bot
 ```
 
 ## TODOs
@@ -86,4 +86,4 @@ remindee-bot
   - [ ] 抗攻击
   - [ ] 数据定时上传备份
 - web
-  - [ ] 待定 actix-web?
+  - [ ] 待定 actix-web? axum?
