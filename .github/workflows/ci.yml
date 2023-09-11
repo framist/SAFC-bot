@@ -1,10 +1,13 @@
-name: CI
-
+name: build in muti platform
 on:
-  pull_request:
   push:
     branches:
-      - main
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - "**"
 
 jobs:
   build:
@@ -59,6 +62,11 @@ jobs:
           profile: minimal
           toolchain: stable
       - run: cargo build --release
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.target }}
+          path: "/target/release/safc_bot"
 
   # rustfmt:
   #   name: Rustfmt
