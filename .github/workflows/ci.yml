@@ -63,6 +63,8 @@ jobs:
           toolchain: stable
       - run: cargo build --release
 
+      - shell: pwsh
+        run: echo "target=safc-bot-${{ matrix.platform }}-${{ matrix.arch }}" >> $env:GITHUB_ENV
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ env.target }}
