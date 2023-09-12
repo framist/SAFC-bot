@@ -84,6 +84,7 @@ pub fn find_object(
     rows.collect::<Result<Vec<_>, _>>()
 }
 
+use teloxide::utils::markdown::escape;
 pub fn get_comment(object_id: &String) -> Result<Vec<String>> {
     let conn = _db_open()?;
 
@@ -91,11 +92,11 @@ pub fn get_comment(object_id: &String) -> Result<Vec<String>> {
         conn.prepare("SELECT description, date, source_cate, id FROM comments WHERE object=? ")?;
     let rows = stmt.query_map([object_id], |row| {
         Ok(format!(
-            "Date: {} | From: {} | ID: {}\n评价：{}",
-            row.get::<_, String>(1)?,
+            "*Date: {} \\| From: {} \\| ID: `{}`*\n{}",
+            escape(&row.get::<_, String>(1)?),
             row.get::<_, String>(2)?,
             row.get::<_, String>(3)?,
-            row.get::<_, String>(0)?
+            escape(&row.get::<_, String>(0)?.replace("<br>", "\n"))
         ))
     })?;
     rows.collect::<Result<Vec<_>, _>>()

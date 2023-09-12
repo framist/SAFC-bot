@@ -9,6 +9,8 @@
 
 # 大学生反诈中心 SAFC
 
+![bot_demo](./assets/bot_demo.png)
+
 ## 背景
 
 自从最初的导师评价网（urfire）关闭，时至今日，一批一批的新导师评价数据分享平台的迭起兴衰，最终都落于 404 或收费闭塞。
@@ -21,8 +23,8 @@
 
 为了最大保护信息安全与隐私，大学生反诈中心（SAFC）基于 Telegram 平台，包含以下功能
 
-* Telegram 机器人 ~~[@SAFC_bot](https://t.me/SAFC_bot)~~ 备份：[@SAFC_bak_bot](https://t.me/SAFC_bak_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
 * Telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台
+* Telegram 机器人 ~~[@SAFC_bot](https://t.me/SAFC_bot)~~ 备份：[@SAFC_bak_bot](https://t.me/SAFC_bak_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
 
 本平台遵守几点为主旨：
 
@@ -40,7 +42,7 @@
 
 ## 发展
 
-目前敏捷性开发，以功能上线时间为先，后续需要大量的开发重构。
+目前敏捷性开发，以功能上线时间为先，后续需要大量的开发重构。*永远的 beta 版*
 
 ## 参考
 
@@ -78,12 +80,18 @@ SAFC_bot
 
 ## TODOs
 
+- db
+  - [ ] 模块重构
 - tg bot 功能
-  - [ ] 模糊/快速 搜索
   - [ ] 嵌套评价
+  - [ ] 模糊/快速 搜索
   - [ ] 词云？关键字提取？
   - [ ] 数据汇报
   - [ ] 抗攻击
   - [ ] 数据定时上传备份
 - web
   - [ ] 待定 actix-web? axum?
+
+---
+
+[框架科工](https://craft.framist.top/) | 为虚无的世间献上一点花火🔥

@@ -4,6 +4,7 @@ use safc::sec::*;
 
 use serde_json;
 use teloxide::types::ParseMode::MarkdownV2;
+use teloxide::utils::markdown::escape;
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
     prelude::*,
@@ -41,7 +42,6 @@ enum Command {
 
 #[tokio::main]
 async fn main() {
-    debug_init();
     pretty_env_logger::init();
     log::info!("Starting SAFT bot...");
 
@@ -175,7 +175,7 @@ async fn unable_command(bot: Bot, msg: Message) -> HandlerResult {
     Ok(())
 }
 
-async fn invalid_state(bot: Bot, msg: Message) -> HandlerResult {
+async fn invalid_state(_bot: Bot, _msg: Message) -> HandlerResult {
     // bot.send_message(msg.chat.id, "❎ 错误流程 - Type /help to see the usage.")
     //     .await?;
     log::warn!("invalid_state - Unable to handle the message.");
@@ -188,11 +188,9 @@ async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
         format!("❎ 错误命令 - usage: \n{}", Command::descriptions()),
     )
     .await?;
-    log::warn!("invalid_state - Unable to handle the command");
+    log::warn!("invalid_command - Unable to handle the command");
     Ok(())
 }
-
-
 
 /// 开始对话，并向用户询问他们的 school_cate。
 async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
@@ -409,15 +407,18 @@ async fn read_or_comment_cb(
                 // 阅读评价
                 let coms = get_comment(&object_id)?;
                 let text = if !coms.is_empty() {
-                    coms.join("\n---\n").replace("<br>", "\n")
+                    coms.join("\n\n")
                 } else {
-                    "🈳 此客体暂无评价！".to_string()
+                    "🈳 _此客体暂无评价！_".to_string()
                 };
-                let text = format!("👔 {supervisor} 的评价\n{text}\n请选择操作：");
+                let text = format!("👔 {} id: `{}` 的评价：\n{}\n\n\
+                    _使用 /comment \\<id\\> 给评价写评价。_ \
+                    请选择操作：", escape(supervisor.as_str()), &object_id, text);
                 // Edit text of the message to which the buttons were attached
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text)
                         .reply_markup(build_op_keyboard())
+                        .parse_mode(MarkdownV2)
                         .await?;
                 } else if let Some(id) = q.inline_message_id {
                     bot.edit_message_text_inline(id, text).await?; // 使用户自己发言的情况（inline 模式）todo
@@ -546,11 +547,10 @@ async fn read_or_comment_cb(
     Ok(())
 }
 
-
-async fn invalid_callback_query(bot: Bot, q: CallbackQuery,) -> HandlerResult {
+async fn invalid_callback_query(bot: Bot, q: CallbackQuery) -> HandlerResult {
     bot.answer_callback_query(q.id).await?;
     if let Some(Message { id, chat, .. }) = q.message {
-        bot.edit_message_text(chat.id, id, "❎ 对话过期")
+        bot.edit_message_text(chat.id, id, "❎ 对话过期。使用 /start 重新开始")
             .await?;
     }
     Ok(())
@@ -634,12 +634,6 @@ async fn publish_comment(
             .await?;
     }
     Ok(())
-}
-
-/// debug
-fn debug_init() {
-    // 设置日志等级
-    std::env::set_var("RUST_LOG", "debug");
 }
 
 /// 一维向量转换为 n 列纵向键盘
