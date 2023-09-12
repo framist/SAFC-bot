@@ -5,6 +5,8 @@ use teloxide::types::InlineKeyboardMarkup;
 
 use serde::{Deserialize, Serialize};
 
+use crate::db::*;
+
 const BOT_INFO: &str = r#"*大学生反诈中心*
 
 _社群，保护，开放_
@@ -73,10 +75,6 @@ pub enum State {
         object_id: String,
     },
     Comment {
-        school_cate: String,
-        university: String,
-        department: String,
-        supervisor: String,
         object_id: String,
     },
     Publish {
@@ -162,6 +160,66 @@ pub fn build_op_keyboard() -> InlineKeyboardMarkup {
         ],
     ])
 }
+
+
+use teloxide::utils::markdown::escape;
+/// 生成评价 markdown
+pub fn get_comment_msg(object_id: &String, supervisor: &String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+
+    let coms = comments_msg_helper(object_id)?;
+    let text = if !coms.is_empty() {
+        coms.join("\n\n")
+    } else {
+        "🈳 _此客体暂无评价！_".to_string()
+    };
+    let text = format!(
+        "*👔 {} id: `{}` 的评价：*\n{}\n\
+        _使用 /comment \\<id\\> 给评价写评价。_ \
+        请选择操作：",
+        escape(supervisor.as_str()),
+        &object_id,
+        text
+    );
+    Ok(text)
+}
+
+fn comments_msg_helper(object_id: &String) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+    find_comment(object_id)?
+        .iter()
+        .map(|c: &Comment| {
+            Ok(format!(
+                "💬 * data {} \\| from {} \\| id `{}`*\n\
+                {}\n\
+                {}\n",
+                escape(c.date.as_str()),
+                c.source_cate,
+                c.id,
+                escape(c.description.replace("<br>", "\n").as_str()),
+                format_nested_comments(comments_msg_helper(&c.id)?)
+            ))
+        })
+        .collect()
+}
+
+/// 格式化嵌套评价
+fn format_nested_comments(comments: Vec<String>) -> String {
+    if !comments.is_empty() {
+        comments
+            .iter()
+            .map(|c| {
+                c.lines()
+                    .map(|l| format!(" \\| {}", l))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .collect::<Vec<_>>()
+            .join(" \\| \\-\n")
+    } else {
+        // " \\| _沙发虚位以待_".to_owned()
+        escape(" ◻")
+    }
+}
+
 
 #[test]
 fn my_test() {

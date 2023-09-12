@@ -72,16 +72,19 @@ https://github.com/magnickolas/remindee-bot
 5. Send a message to your bot with `/start` command.
 6. Enjoy!
 
-```console
+```sh
 export TELOXIDE_TOKEN=<BOT TOKEN e.g. 123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
 export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
-SAFC_bot
+./SAFC_bot
 ```
 
 ## TODOs
 
+- VIS
+  - [ ] logo
 - db
   - [ ] 模块重构
+  - [ ] 分离与定时备份、发布
 - tg bot 功能
   - [ ] 嵌套评价
   - [ ] 模糊/快速 搜索

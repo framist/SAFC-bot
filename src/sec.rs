@@ -1,3 +1,8 @@
+//! # sec
+//!
+//! 安全与加密有关操作
+//!
+
 use hex;
 use sha2::{Digest, Sha256};
 

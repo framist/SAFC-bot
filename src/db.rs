@@ -1,20 +1,73 @@
+//! # db
+//!
+//! 数据、数据库有关操作
+//!
+//! 原始数据的处理、建立数据库脚本文件。请保留以供未来参考
+//! 
+//! 使用 sqlite - 关系型数据库，弱类型
+//! 
+//! ```
+//! 【客体表】objects
+//! _学校类别 < 学校 < 学院 < 导师 - _日期 - _信息 - object (key)
+//!           | 包含学院本身 self 下同
+//! 
+//! object：
+//! sha256( 学校 | 学院 | 导师 )[:8]
+//! 
+//! 【评价表】comments
+//! object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评价 id (key)
+//! 
+//! `_` 表示后续可变
+//! 来源分类：admin, urfire, telegram...
+//! 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like） ...
+//! 评价 id = sha256( object | 评价 | 日期 )[:8] 注意，这个也包含去重的性质
+//! 发布人签名 可为空 = sha256( 评价 id | sha256(salt + 发布人一次性密语).hex )
+//! salt: SAFC_salt
+//! ```
+//! 
+//! TODO 转换为严格的关系型数据库，目前为了敏捷开发，使用 ~2NF
+//! 
+//! TODO 备份与发布
+//! 
+//! TODO 区块链、分布式数据库？
+
 use crate::sec::*;
 use rusqlite::{params, Connection, Result};
+use std::str::FromStr;
+use strum_macros::{Display, EnumString};
 
 const DB_PATH: &str = "./db.sqlite"; // TODO
 
 /// 来源分类：admin, urfire, telegram...
-use strum_macros::{Display, EnumString};
-#[derive(Debug, EnumString, Display)] // ?
+#[derive(Debug, EnumString, Display, PartialEq)] // ?
+#[strum(serialize_all = "lowercase")]
 pub enum SourceCate {
-    #[strum(serialize = "admin")]
     Admin,
-    #[strum(serialize = "urfire")]
     Urfire,
-    #[strum(serialize = "telegram")]
     Telegram,
-    #[strum(serialize = "web")]
     Web,
+}
+
+/// 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like）
+#[derive(Debug, EnumString, Display, PartialEq)]
+#[strum(serialize_all = "lowercase")]
+pub enum CommentType {
+    Nest,
+    Teacher,
+    Course,
+    Student,
+    Unity,
+    Info,
+}
+
+pub struct Comment {
+    pub object: String,
+    pub description: String,
+    pub date: String,
+    pub source_cate: SourceCate,
+    pub comment_type: CommentType,
+    pub author_sign: Option<String>,
+    pub id: String,
 }
 
 fn _db_open() -> Result<Connection> {
@@ -84,23 +137,38 @@ pub fn find_object(
     rows.collect::<Result<Vec<_>, _>>()
 }
 
-use teloxide::utils::markdown::escape;
-pub fn get_comment(object_id: &String) -> Result<Vec<String>> {
+/// 查找评价
+///
+/// 【评价表】comments : object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评价 id (key)
+/// - object TEXT NOT NULL,
+/// - description TEXT NOT NULL,
+/// - date TEXT NOT NULL,
+/// - source_cate TEXT NOT NULL,
+/// - type TEXT NOT NULL,
+/// - author_sign TEXT,
+/// - id TEXT NOT NULL,
+pub fn find_comment(object_id: &String) -> Result<Vec<Comment>> {
     let conn = _db_open()?;
 
-    let mut stmt =
-        conn.prepare("SELECT description, date, source_cate, id FROM comments WHERE object=? ")?;
+    let mut stmt = conn.prepare("SELECT * FROM comments WHERE object=? ")?;
     let rows = stmt.query_map([object_id], |row| {
-        Ok(format!(
-            "*Date: {} \\| From: {} \\| ID: `{}`*\n{}",
-            escape(&row.get::<_, String>(1)?),
-            row.get::<_, String>(2)?,
-            row.get::<_, String>(3)?,
-            escape(&row.get::<_, String>(0)?.replace("<br>", "\n"))
-        ))
+        Ok(Comment {
+            object: row.get::<_, String>(0)?,
+            description: row.get::<_, String>(1)?,
+            date: row.get::<_, String>(2)?,
+            source_cate: SourceCate::from_str(row.get::<_, String>(3)?.as_str()).unwrap(),
+            comment_type: CommentType::from_str(row.get::<_, String>(4)?.as_str()).unwrap(),
+            author_sign: match row.get::<_, String>(5) {
+                Ok(s) => Some(s),
+                Err(_) => None,
+            },
+            id: row.get::<_, String>(6)?,
+        })
     })?;
     rows.collect::<Result<Vec<_>, _>>()
 }
+
+
 
 use chrono;
 /// 增加评价客体，有一些值在函数内计算
@@ -173,11 +241,14 @@ fn my_test() {
         "{:#?}",
         find_department(&"985".to_string(), &"清华大学".to_string()).unwrap()
     );
-    println!("{:#?}", get_comment(&"b148b44fd82fda41".to_string()));
-    // add_object_to_database(
-    // &"schoolcate".to_string(),
-    // &"university".to_string(),
-    // &"department".to_string(),
-    // &"supervisor".to_string()
-    // ).unwrap();
+    // println!(
+    //     "{}",
+    //     comments_msg_md(&"b148b44fd82fda41".to_string()).unwrap()[0]
+    // );
+}
+
+#[test]
+fn my_test2() {
+    assert_eq!("admin".to_owned(), SourceCate::Admin.to_string());
+    assert_eq!("nest".to_owned(), CommentType::Nest.to_string());
 }

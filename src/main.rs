@@ -32,12 +32,12 @@ enum Command {
     Cancel,
     #[command(description = "信息")]
     Info,
+    #[command(description = "评价 /comment <id>")]
+    Comment(String),
     #[command(description = "统计与状态（暂不可用）")]
     Status,
     #[command(description = "搜索（暂不可用）/find <客体>")]
     Find(String),
-    #[command(description = "评价（暂不可用）/comment <id>")]
-    Comment(String),
 }
 
 #[tokio::main]
@@ -74,7 +74,7 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(case![Command::Info].endpoint(info_command))
         .branch(case![Command::Status].endpoint(unable_command))
         .branch(case![Command::Find(arg)].endpoint(unable_command))
-        .branch(case![Command::Comment(arg)].endpoint(unable_command))
+        .branch(case![Command::Comment(arg)].endpoint(comment_command))
         .branch(dptree::endpoint(invalid_command));
 
     // 消息
@@ -97,16 +97,7 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
             }]
             .endpoint(read_or_comment),
         )
-        .branch(
-            case![State::Comment {
-                school_cate,
-                university,
-                department,
-                supervisor,
-                object_id
-            }]
-            .endpoint(add_comment),
-        )
+        .branch(case![State::Comment { object_id }].endpoint(add_comment))
         .branch(
             case![State::Publish {
                 object_id,
@@ -166,6 +157,37 @@ async fn cancel_command(bot: Bot, dialogue: MyDialogue, msg: Message) -> Handler
     .await?;
 
     dialogue.exit().await?;
+    Ok(())
+}
+
+/// 直接评价命令处理函数
+async fn comment_command(
+    bot: Bot,
+    dialogue: MyDialogue,
+    arg: String,
+    msg: Message,
+) -> HandlerResult {
+    // arg 有效性验证
+    if arg.is_empty() {
+        bot.send_message(msg.chat.id, "使用方法： /comment <id>")
+            .await?;
+        return Ok(());
+    } // todo
+
+    let object_id = arg;
+
+    let text = format!(
+        "🆔 `{object_id}`\n\
+        \n请写下您对此客体的评价："
+    );
+
+    bot.send_message(msg.chat.id, text)
+        .reply_to_message_id(msg.id)
+        .parse_mode(MarkdownV2)
+        .reply_markup(KeyboardRemove::new())
+        .await?;
+
+    dialogue.update(State::Comment { object_id }).await?; // 更新会话状态
     Ok(())
 }
 
@@ -404,16 +426,7 @@ async fn read_or_comment_cb(
     if let Some(op) = &q.data {
         match serde_json::from_str(&op)? {
             ObjectOp::Read => {
-                // 阅读评价
-                let coms = get_comment(&object_id)?;
-                let text = if !coms.is_empty() {
-                    coms.join("\n\n")
-                } else {
-                    "🈳 _此客体暂无评价！_".to_string()
-                };
-                let text = format!("👔 {} id: `{}` 的评价：\n{}\n\n\
-                    _使用 /comment \\<id\\> 给评价写评价。_ \
-                    请选择操作：", escape(supervisor.as_str()), &object_id, text);
+                let text = get_comment_msg(&object_id, &supervisor)?;
                 // Edit text of the message to which the buttons were attached
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text)
@@ -472,15 +485,7 @@ async fn read_or_comment_cb(
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text).await?;
                 } // else ... todo
-                dialogue
-                    .update(State::Comment {
-                        school_cate,
-                        university,
-                        department,
-                        supervisor,
-                        object_id,
-                    })
-                    .await?; // 更新会话状态
+                dialogue.update(State::Comment { object_id }).await?; // 更新会话状态
             }
             ObjectOp::End => {
                 bot.send_message(
@@ -557,17 +562,11 @@ async fn invalid_callback_query(bot: Bot, q: CallbackQuery) -> HandlerResult {
 }
 
 /// 增加评价处理函数
-/// todo 看一下返回字符串使用的标记语言
+/// ? 返回字符串使用的标记语言是什么
 async fn add_comment(
     bot: Bot,
     dialogue: MyDialogue,
-    (school_cate, university, department, supervisor, object_id): (
-        String,
-        String,
-        String,
-        String,
-        String,
-    ), // Available from `State::...`.
+    object_id: String, // Available from `State::...`.
     msg: Message,
 ) -> HandlerResult {
     if let Some(comment) = msg.text().map(ToOwned::to_owned) {
@@ -576,15 +575,20 @@ async fn add_comment(
         bot.send_message(
             msg.chat.id,
             format!(
-                "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
-                您的评价是```\n{comment}\n```\nid: {comment_id} | data: {date}\n\
+                "您对 {} 的评价是\n\
+                ```\n{}\n```\nid: `{}` \\| data: {}\n\
                 确认发布？如确认请输入「发布人 OTP」，之后将发布评价;\
-                取消请 /cancel —— 您只能在此取消！\n\
-                Ps.「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论，\
-                如不需要，输入随机值即可"
+                取消请 /cancel  *您只能在此取消！*\n\
+                _注：「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论，\
+                如不需要，输入随机值即可_",
+                &object_id,
+                escape(comment.as_str()),
+                comment_id,
+                escape(date.as_str())
             ),
         )
         .reply_to_message_id(msg.id)
+        .parse_mode(MarkdownV2)
         .await?;
         dialogue
             .update(State::Publish {
