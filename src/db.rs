@@ -29,14 +29,14 @@
 //! 
 //! TODO 备份与发布
 //! 
-//! TODO 区块链、分布式数据库？
+//! TODO 区块链、分布式数据库？- 基于 telegram 通讯
+//! 
 
 use crate::sec::*;
 use rusqlite::{params, Connection, Result};
 use std::str::FromStr;
 use strum_macros::{Display, EnumString};
 
-const DB_PATH: &str = "./db.sqlite"; // TODO
 
 /// 来源分类：admin, urfire, telegram...
 #[derive(Debug, EnumString, Display, PartialEq)] // ?
@@ -70,12 +70,23 @@ pub struct Comment {
     pub id: String,
 }
 
-fn _db_open() -> Result<Connection> {
-    Connection::open(DB_PATH)
+use std::env;
+fn db_open() -> Result<Connection> {
+    
+    // Read environment variable and set DB_PATH
+    let db_path = match env::var("SAFC_DB_PATH") {
+        Ok(val) => val,
+        Err(_) => {
+            log::warn!("SAFC_DB_PATH not set, set to default: ./db.sqlite");
+            "db.sqlite".to_string()
+        }
+    };
+   
+    Connection::open(db_path)
 }
 
 pub fn find_school_cate() -> Result<Vec<String>> {
-    let conn = _db_open()?;
+    let conn = db_open()?;
 
     let mut stmt = conn.prepare("SELECT DISTINCT school_cate FROM objects")?;
     let rows = stmt.query_map([], |row| row.get::<usize, String>(0))?;
@@ -84,7 +95,7 @@ pub fn find_school_cate() -> Result<Vec<String>> {
 }
 
 pub fn find_university(s_c: &String) -> Result<Vec<String>> {
-    let conn = _db_open()?;
+    let conn = db_open()?;
 
     let mut stmt =
         conn.prepare("SELECT DISTINCT university FROM objects WHERE school_cate=(?1)")?;
@@ -94,7 +105,7 @@ pub fn find_university(s_c: &String) -> Result<Vec<String>> {
 }
 
 pub fn find_department(s_c: &String, university: &String) -> Result<Vec<String>> {
-    let conn = _db_open()?;
+    let conn = db_open()?;
 
     let mut stmt = conn.prepare(
         "SELECT DISTINCT department FROM objects WHERE \
@@ -109,7 +120,7 @@ pub fn find_supervisor(
     university: &String,
     department: &String,
 ) -> Result<Vec<String>> {
-    let conn = _db_open()?;
+    let conn = db_open()?;
 
     let mut stmt = conn.prepare(
         "SELECT DISTINCT supervisor FROM objects WHERE \
@@ -124,7 +135,7 @@ pub fn find_object(
     department: &String,
     supervisor: &String,
 ) -> Result<Vec<String>> {
-    let conn = _db_open()?;
+    let conn = db_open()?;
 
     let mut stmt = conn.prepare(
         "SELECT DISTINCT object FROM objects WHERE \
@@ -148,7 +159,7 @@ pub fn find_object(
 /// - author_sign TEXT,
 /// - id TEXT NOT NULL,
 pub fn find_comment(object_id: &String) -> Result<Vec<Comment>> {
-    let conn = _db_open()?;
+    let conn = db_open()?;
 
     let mut stmt = conn.prepare("SELECT * FROM comments WHERE object=? ")?;
     let rows = stmt.query_map([object_id], |row| {
@@ -180,7 +191,7 @@ pub fn add_object_to_database(
     supervisor: &String,
     data: &String,
 ) -> Result<(), rusqlite::Error> {
-    let conn = _db_open()?;
+    let conn = db_open()?;
     let object_id = hash_object_id(university, department, supervisor);
 
     conn.execute(
@@ -208,7 +219,7 @@ pub fn add_comment_to_database(
     comment_type: &String,
     otp: &String,
 ) -> Result<(), rusqlite::Error> {
-    let conn = _db_open()?;
+    let conn = db_open()?;
     let comment_id = hash_comment_id(object_id, comment, date);
     let sign = hash_author_sign(&comment_id, otp);
     conn.execute(

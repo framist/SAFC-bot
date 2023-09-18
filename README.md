@@ -28,9 +28,9 @@
 
 本平台遵守几点为主旨：
 
-* 出发：共享，开放，自由的精神；我为人人，人人为我的理念
-* 技术：密码朋克，尽可能地做好隐私保护、数据与人身安全；数据共享代码开源，相互监督共进。
-* 定位：综合大学生所需要的功能，不光包括最基本的导师评价和查询功能，还能对学校、专业、学院、课程、学生、已有的评价进行评价；另外提供一个交流平台。
+* _出发_：共享，开放，自由的精神；我为人人，人人为我的理念。**永远免费，数据、代码开源**。
+* _技术_：密码朋克，尽可能地做好隐私保护、数据与人身安全；数据共享代码开源，相互监督共进。
+* _定位_：综合大学生所需要的功能，不光包括最基本的导师评价和查询功能，还能对学校、专业、学院、课程、学生、已有的评价进行评价；另外提供一个交流平台。
 * 只有评价，没有评分，每个客体都不能由单独的分数来决定
 
 ## 隐私
@@ -68,15 +68,14 @@ https://github.com/magnickolas/remindee-bot
 1. Install [Rust].
 2. Setup your bot with [@botfather](https://t.me/botfather).
 3. Clone this repository.
-4. Run `cargo run` from the repository directory.
-5. Send a message to your bot with `/start` command.
-6. Enjoy!
-
-```sh
-export TELOXIDE_TOKEN=<BOT TOKEN e.g. 123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
-export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
-./SAFC_bot
-```
+4. Set the environment variables:
+   ```sh
+   export TELOXIDE_TOKEN=<BOT TOKEN e.g.  123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
+   export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
+   ```
+5. Run `cargo run` from the repository directory.
+6. Send a message to your bot with `/start` command.
+7. Enjoy!
 
 ## TODOs
 
@@ -86,7 +85,8 @@ export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
   - [ ] 模块重构
   - [ ] 分离与定时备份、发布
 - tg bot 功能
-  - [ ] 嵌套评价
+  - [x] 嵌套评价
+    - [ ] 更方便优雅地评价（翻页、回调）
   - [ ] 模糊/快速 搜索
   - [ ] 词云？关键字提取？
   - [ ] 数据汇报
@@ -94,7 +94,11 @@ export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
   - [ ] 数据定时上传备份
 - web
   - [ ] 待定 actix-web? axum?
+- 部署
+  - [ ] env 转而使用配置文件的形式 & docker
+- **带计划！**
+  - [ ] 基于 Telegram 通讯的分布式数据库与分布式 bot
 
 ---
 
-[框架科工](https://craft.framist.top/) | 为虚无的世间献上一点花火🔥
+[框架科工](https://craft.framist.top/) | 致力为虚无的世间献上一点花火🔥

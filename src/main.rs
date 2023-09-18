@@ -21,10 +21,10 @@ type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 #[command(
     rename_rule = "lowercase",
     // parse_with = "split",
-    description = "这是大学生反诈中心（SAFT）的机器人\n支持以下命令："
+    description = "这是大学生反诈中心（SAFC @SAFC_group）的机器人\n支持以下命令："
 )]
 enum Command {
-    #[command(description = "显示帮助信息（此文本）")]
+    #[command(description = "显示帮助信息")]
     Help,
     #[command(description = "开始")]
     Start,
