@@ -48,6 +48,17 @@ pub enum SourceCate {
     Web,
 }
 
+
+pub struct Object {
+    pub school_cate: SourceCate,
+    pub university: String,
+    pub department: String,
+    pub supervisor: String,
+    pub date: String,
+    pub info: Option<String>,
+    pub object: String,
+}
+
 /// 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like）
 #[derive(Debug, EnumString, Display, PartialEq)]
 #[strum(serialize_all = "lowercase")]
@@ -60,6 +71,7 @@ pub enum CommentType {
     Info,
 }
 
+#[derive(Debug)]
 pub struct Comment {
     pub object: String,
     pub description: String,
@@ -130,6 +142,27 @@ pub fn find_supervisor(
     rows.collect::<Result<Vec<_>, _>>()
 }
 
+/// 模糊搜索
+/// 百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符。这些符号可以被组合使用。
+pub fn find_supervisor_like(s: &String) -> Result<Vec<Vec<String>>> {
+    let conn = db_open()?;
+
+    let mut stmt = conn.prepare(
+        "SELECT school_cate, university, department, supervisor, object FROM objects WHERE \
+        supervisor LIKE (?1)",
+    )?;
+    // let rows = stmt.query_map([s], |row| row.get(0))?;
+    let rows = stmt.query_map([s], |row| (0..5).map(|i| row.get(i)).collect())?;
+    rows.collect::<Result<Vec<_>, _>>()
+}
+
+#[test]
+fn test_find_object() {
+    let s = &"习__".to_string();
+    let result = find_supervisor_like(s);
+    println!("{:#?}", result);
+}
+
 pub fn find_object(
     university: &String,
     department: &String,
@@ -179,7 +212,32 @@ pub fn find_comment(object_id: &String) -> Result<Vec<Comment>> {
     rows.collect::<Result<Vec<_>, _>>()
 }
 
+pub fn find_comment_like(s: &String) -> Result<Vec<Comment>> {
+    let conn = db_open()?;
 
+    let mut stmt = conn.prepare("SELECT * FROM comments WHERE description LIKE ? ")?;
+    let rows = stmt.query_map([s], |row| {
+        Ok(Comment {
+            object: row.get::<_, String>(0)?,
+            description: row.get::<_, String>(1)?,
+            date: row.get::<_, String>(2)?,
+            source_cate: SourceCate::from_str(row.get::<_, String>(3)?.as_str()).unwrap(),
+            comment_type: CommentType::from_str(row.get::<_, String>(4)?.as_str()).unwrap(),
+            author_sign: match row.get::<_, String>(5) {
+                Ok(s) => Some(s),
+                Err(_) => None,
+            },
+            id: row.get::<_, String>(6)?,
+        })
+    })?;
+    rows.collect::<Result<Vec<_>, _>>()
+}
+
+#[test]
+fn test_find_comment_like() {
+    let comments = find_comment_like(&"%习大大%".to_string());
+    println!("{:#?}", comments);
+}
 
 use chrono;
 /// 增加评价客体，有一些值在函数内计算

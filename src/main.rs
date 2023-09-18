@@ -32,12 +32,12 @@ enum Command {
     Cancel,
     #[command(description = "信息")]
     Info,
-    #[command(description = "评价 /comment <id>")]
+    #[command(description = "评价")]
     Comment(String),
+    #[command(description = "搜索")]
+    Find(String),
     #[command(description = "统计与状态（暂不可用）")]
     Status,
-    #[command(description = "搜索（暂不可用）/find <客体>")]
-    Find(String),
 }
 
 #[tokio::main]
@@ -73,7 +73,7 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(case![Command::Cancel].endpoint(cancel_command))
         .branch(case![Command::Info].endpoint(info_command))
         .branch(case![Command::Status].endpoint(unable_command))
-        .branch(case![Command::Find(arg)].endpoint(unable_command))
+        .branch(case![Command::Find(arg)].endpoint(find_command))
         .branch(case![Command::Comment(arg)].endpoint(comment_command))
         .branch(dptree::endpoint(invalid_command));
 
@@ -160,6 +160,75 @@ async fn cancel_command(bot: Bot, dialogue: MyDialogue, msg: Message) -> Handler
     Ok(())
 }
 
+/// find_command 快速查找
+/// todo 改为回调的形式，来支持翻页，查找功能选择等问题
+async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message) -> HandlerResult {
+    let j = |x: &[&str]| format!("%{}%", x.join("%"));
+    // arg 有效性验证
+    let args: Vec<&str> = arg.split(' ').collect();
+    if args.len() >= 2 {
+        match args[0] {
+            "客体" => {
+                let text = find_supervisor_like(&j(&args[1..]))?
+                    .into_iter()
+                    .map(|x| x.join(" > "))
+                    .collect::<Vec<String>>();
+                let text = if text.len() > 20 {
+                    format!("条目过多，仅显示前 20 条\n{}", text[..20].join("\n"))  // todo 应能翻页来显示所有
+                } else {
+                    text.join("\n")
+                };
+                bot.send_message(msg.chat.id, text)
+                    .reply_to_message_id(msg.id)
+                    .await?;
+                return Ok(());
+            }
+            "评价" => {
+                let text = find_comment_like(&j(&args[1..]))?
+                    .iter()
+                    .map(|c: &Comment| {
+                        format!(
+                            "💬 *针对 object `{}` 的评价：*\n\
+                            *data {} \\| from {} \\| id `{}`*\n\
+                            {}\n",
+                            c.object,
+                            escape(c.date.as_str()),
+                            c.source_cate,
+                            c.id,
+                            escape(c.description.replace("<br>", "\n").as_str())
+                        )
+                    })
+                    .collect::<Vec<String>>();
+                let text = if text.len() > 5 {
+                    format!("_条目过多，仅显示前 5 条_\n{}", text[..5].join("\n"))  // todo 应能翻页来显示所有
+                } else {
+                    text.join("\n")
+                };
+
+                bot.send_message(msg.chat.id, text)
+                    .reply_to_message_id(msg.id)
+                    .parse_mode(MarkdownV2)
+                    .await?;
+                return Ok(());
+            }
+            _ => {}
+        }
+    }
+    bot.send_message(
+        msg.chat.id,
+        "使用方法： \n\
+                /find <客体 | 评价> <关键字 1> [关键字...]\n\
+            例如：
+                /find 客体 习__
+                /find 评价 前途无量
+            可选的高级操作：\n\
+                您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\
+            目前的此命令操作是临时的，后续会改为内联按钮的形式来支持翻页，功能选择等",
+    )
+    .await?;
+    return Ok(());
+}
+
 /// 直接评价命令处理函数
 async fn comment_command(
     bot: Bot,
@@ -168,11 +237,11 @@ async fn comment_command(
     msg: Message,
 ) -> HandlerResult {
     // arg 有效性验证
-    if arg.is_empty() {
-        bot.send_message(msg.chat.id, "使用方法： /comment <id>")
+    if arg.is_empty() || find_comment(&arg)?.is_empty() {
+        bot.send_message(msg.chat.id, "使用方法： /comment <有效 id>")
             .await?;
         return Ok(());
-    } // todo
+    }
 
     let object_id = arg;
 

@@ -187,7 +187,7 @@ fn comments_msg_helper(object_id: &String) -> Result<Vec<String>, Box<dyn std::e
         .iter()
         .map(|c: &Comment| {
             Ok(format!(
-                "💬 * data {} \\| from {} \\| id `{}`*\n\
+                "💬 *data {} \\| from {} \\| id `{}`*\n\
                 {}\n\
                 {}\n",
                 escape(c.date.as_str()),
