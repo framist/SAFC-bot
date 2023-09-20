@@ -272,11 +272,10 @@ async fn comment_command(
                 comment_type: t,
             })
             .await?; // 更新会话状态
-        return Ok(());
+        Ok(())
     } else {
-        bot.send_message(msg.chat.id, "❌ - 非有效 id")
-            .await?;
-        return Ok(());
+        bot.send_message(msg.chat.id, "❌ - 非有效 id").await?;
+        Ok(())
     }
 }
 

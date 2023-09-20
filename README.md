@@ -9,7 +9,11 @@
 
 # 大学生反诈中心 SAFC
 
-![bot_demo](./assets/bot_demo.png)
+<details>
+<summary>Demo</summary>
+<img src="./assets/bot_demo.webp">
+</details>
+
 
 ## 背景
 

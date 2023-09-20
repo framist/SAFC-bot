@@ -189,7 +189,7 @@ pub fn if_object_exists(object: &str) -> Result<Option<CommentType>> {
 
     let exists1: bool = conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM objects WHERE object = ?1)",
-        &[object],
+        [object],
         |row| row.get(0),
     )?;
 
@@ -199,7 +199,7 @@ pub fn if_object_exists(object: &str) -> Result<Option<CommentType>> {
 
     let exists2: bool = conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM comments WHERE id = ?1)",
-        &[object],
+        [object],
         |row| row.get(0),
     )?;
 
