@@ -1,3 +1,5 @@
+//! 目前为 demo 阶段，只是为了验证可行性
+
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 
 #[get("/")]

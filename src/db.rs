@@ -3,20 +3,20 @@
 //! 数据、数据库有关操作
 //!
 //! 原始数据的处理、建立数据库脚本文件。请保留以供未来参考
-//! 
+//!
 //! 使用 sqlite - 关系型数据库，弱类型
-//! 
+//!
 //! ```
 //! 【客体表】objects
 //! _学校类别 < 学校 < 学院 < 导师 - _日期 - _信息 - object (key)
 //!           | 包含学院本身 self 下同
-//! 
+//!
 //! object：
 //! sha256( 学校 | 学院 | 导师 )[:8]
-//! 
+//!
 //! 【评价表】comments
 //! object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评价 id (key)
-//! 
+//!
 //! `_` 表示后续可变
 //! 来源分类：admin, urfire, telegram...
 //! 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like） ...
@@ -24,19 +24,20 @@
 //! 发布人签名 可为空 = sha256( 评价 id | sha256(salt + 发布人一次性密语).hex )
 //! salt: SAFC_salt
 //! ```
-//! 
+//!
 //! TODO 转换为严格的关系型数据库，目前为了敏捷开发，使用 ~2NF
-//! 
+//!
 //! TODO 备份与发布
-//! 
+//!
 //! TODO 区块链、分布式数据库？- 基于 telegram 通讯
-//! 
+//!
 
 use crate::sec::*;
 use rusqlite::{params, Connection, Result};
 use std::str::FromStr;
 use strum_macros::{Display, EnumString};
 
+use chrono;
 
 /// 来源分类：admin, urfire, telegram...
 #[derive(Debug, EnumString, Display, PartialEq)] // ?
@@ -48,7 +49,6 @@ pub enum SourceCate {
     Web,
 }
 
-
 pub struct Object {
     pub school_cate: SourceCate,
     pub university: String,
@@ -59,8 +59,10 @@ pub struct Object {
     pub object: String,
 }
 
+use serde::{Deserialize, Serialize};
+
 /// 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like）
-#[derive(Debug, EnumString, Display, PartialEq)]
+#[derive(Debug, EnumString, Display, PartialEq, Clone, Deserialize, Serialize)]
 #[strum(serialize_all = "lowercase")]
 pub enum CommentType {
     Nest,
@@ -84,7 +86,6 @@ pub struct Comment {
 
 use std::env;
 fn db_open() -> Result<Connection> {
-    
     // Read environment variable and set DB_PATH
     let db_path = match env::var("SAFC_DB_PATH") {
         Ok(val) => val,
@@ -93,7 +94,7 @@ fn db_open() -> Result<Connection> {
             "db.sqlite".to_string()
         }
     };
-   
+
     Connection::open(db_path)
 }
 
@@ -181,6 +182,50 @@ pub fn find_object(
     rows.collect::<Result<Vec<_>, _>>()
 }
 
+/// object 是否存在
+/// TODO 重构：数据库加入客体的种类
+pub fn if_object_exists(object: &str) -> Result<Option<CommentType>> {
+    let conn = db_open()?;
+
+    let exists1: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM objects WHERE object = ?1)",
+        &[object],
+        |row| row.get(0),
+    )?;
+
+    if exists1 {
+        return Ok(Some(CommentType::Teacher));
+    }
+
+    let exists2: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM comments WHERE id = ?1)",
+        &[object],
+        |row| row.get(0),
+    )?;
+
+    if exists2 {
+        return Ok(Some(CommentType::Nest));
+    }
+
+    Ok(None)
+}
+
+#[test]
+fn test_if_object_exists() {
+    let result = if_object_exists("835cc322b7691485");
+    println!("{:#?}", result);
+}
+
+/// 查找发布人
+///
+/// 【发布人表】publishers : object < 发布人 - 姓名 - 学号 - 邮箱 - 签名 - 头像
+/// - object TEXT NOT NULL,
+/// - name TEXT NOT NULL,
+/// - student_id TEXT NOT NULL,
+/// - email TEXT NOT NULL,
+/// - signature TEXT,
+/// - avatar TEXT,
+
 /// 查找评价
 ///
 /// 【评价表】comments : object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评价 id (key)
@@ -239,9 +284,8 @@ fn test_find_comment_like() {
     println!("{:#?}", comments);
 }
 
-use chrono;
 /// 增加评价客体，有一些值在函数内计算
-pub fn add_object_to_database(
+pub fn add_object_to_db(
     // conn: &Connection,
     school_cate: &String,
     university: &String,
@@ -268,7 +312,7 @@ pub fn add_object_to_database(
     Ok(())
 }
 
-pub fn add_comment_to_database(
+pub fn add_comment_to_db(
     // conn: &Connection,
     object_id: &String,
     comment: &String,
@@ -296,6 +340,35 @@ pub fn add_comment_to_database(
     )?;
 
     Ok(())
+}
+
+/// 统计数据库的信息
+/// 总条目数，最近一月新增的条目数...
+pub fn db_status() -> Result<String, rusqlite::Error> {
+    let conn = db_open()?;
+
+    let c_count =
+        conn.query_row::<i32, _, _>("SELECT COUNT(*) FROM comments", [], |row| row.get(0))?;
+
+    let o_count =
+        conn.query_row::<i32, _, _>("SELECT COUNT(*) FROM objects", [], |row| row.get(0))?;
+
+    let start = chrono::Local::now() - chrono::Duration::days(31);
+    let m_count = conn.query_row::<i32, _, _>(
+        "SELECT COUNT(*) FROM comments WHERE date > ?",
+        [start.format("%Y-%m-%d").to_string()],
+        |row| row.get(0),
+    )?;
+
+    Ok(format!(
+        "评价总数：{}, 客体总数：{}, 月新增评价数：{}",
+        c_count, o_count, m_count
+    ))
+}
+
+#[test]
+fn db_status_test() {
+    println!("{:#?}", db_status());
 }
 
 pub fn get_current_date() -> String {

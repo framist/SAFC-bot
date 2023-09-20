@@ -23,7 +23,7 @@
 
 为了最大保护信息安全与隐私，大学生反诈中心（SAFC）基于 Telegram 平台，包含以下功能
 
-* Telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台
+* Telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台 *本仓库未来可能会因为各种原因失踪，请加入此群组以防迷路*
 * Telegram 机器人 ~~[@SAFC_bot](https://t.me/SAFC_bot)~~ 备份：[@SAFC_bak_bot](https://t.me/SAFC_bak_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
 
 本平台遵守几点为主旨：
@@ -35,7 +35,7 @@
 
 ## 隐私
 
-- 为防止滥用，你的 uid 可能会被临时储存在内存中，最多 1 日，除此之外不会记录任何个人信息。
+- 为防止滥用，您的 telegram uid 可能会被临时储存在内存中，最多 1 日，除此之外不会记录任何个人信息。
 - 「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论。其非必选项，且仅会储存其加盐哈希。
 - 我们默认 Telegram 是可信及安全的
 - 早期开发结束后，代码与数据将完全开源
@@ -85,6 +85,7 @@ https://github.com/magnickolas/remindee-bot
   - [ ] 模块重构
   - [ ] 分离与定时备份、发布
 - tg bot 功能
+  - `/start` 重构 —— 作为功能指引
   - [x] 嵌套评价
     - [ ] 更方便优雅地评价（翻页、回调）
   - [ ] 模糊/快速 搜索 - 转为内联按钮的形式
@@ -96,6 +97,8 @@ https://github.com/magnickolas/remindee-bot
   - [ ] 待定 actix-web? axum?
 - 部署
   - [ ] env 转而使用配置文件的形式 & docker
+- 数据
+  - wiki 形式的客体基本信息
 - **带计划！**
   - [ ] 基于 Telegram 通讯的分布式数据库与分布式 bot
 

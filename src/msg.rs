@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::*;
 
+pub const GITHUB_URL: &str = "https://github.com/framist/SAFC-bot";
+
 const BOT_INFO: &str = r#"*大学生反诈中心*
 
 _社群，保护，开放_
@@ -36,8 +38,7 @@ impl ToString for TgResponse {
                 "_目前仍为早期开发版本_ 问题敬请反馈；*越墙不易，延迟丢包敬请见谅*\n",
                 "您可以发送 /cancel 来停止此次对话\n\n",
                 "您可以先查询客体，然后查看或发起对客体的评价。\n\n",
-                "您想查询或评价的「学校类别」是？您可以直接输入或者在下面的键盘选择框中选择\n\n",
-                "_键盘选择框中没有的也可以直接输入来新建；如果是上个类别本身请选择或输入 `self`。下同_\n",
+                "请选择以下功能之一：",
             )
             .to_owned(),
             Self::Info => BOT_INFO.to_owned(),
@@ -53,6 +54,7 @@ impl ToString for TgResponse {
 pub enum State {
     #[default]
     Start,
+    StartCb,
     SchoolCate,
     University {
         school_cate: String,
@@ -75,15 +77,28 @@ pub enum State {
     },
     Comment {
         object_id: String,
+        comment_type: CommentType,
     },
     Publish {
         object_id: String,
         comment: String,
         comment_id: String,
         date: String,
+        comment_type: CommentType,
     },
 }
 
+/// 开始功能选择的回调
+#[derive(Serialize, Deserialize, Debug)]
+pub enum StartOp {
+    Tree,           // 开始在树结构中定位
+    FindSupervisor, // 快速查找教师
+    FindComment,    // 快速查找评价
+    Status,         // 统计与状态
+                    // Find,   // 快速查找
+}
+
+/// 对象操作的回调
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ObjectOp {
     Read,
@@ -143,46 +158,49 @@ pub fn build_op_keyboard() -> InlineKeyboardMarkup {
         vec![
             InlineKeyboardButton::callback(
                 "↩️ 🏫",
-                serde_json::to_string(&ObjectOp::ReturnU)
-                .unwrap(),
+                serde_json::to_string(&ObjectOp::ReturnU).unwrap(),
             ),
             InlineKeyboardButton::callback(
                 "↩️ 🏢",
-                serde_json::to_string(&ObjectOp::ReturnD)
-                .unwrap(),
+                serde_json::to_string(&ObjectOp::ReturnD).unwrap(),
             ),
             InlineKeyboardButton::callback(
                 "↩️ 👔",
-                serde_json::to_string(&ObjectOp::ReturnS)
-                .unwrap(),
+                serde_json::to_string(&ObjectOp::ReturnS).unwrap(),
             ),
         ],
     ])
 }
 
-
 use teloxide::utils::markdown::escape;
 /// 生成评价 markdown
-pub fn get_comment_msg(object_id: &String, supervisor: &String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-
+pub fn get_comment_msg(
+    object_id: &String,
+    supervisor: &str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let coms = comments_msg_helper(object_id)?;
     let text = if !coms.is_empty() {
-        coms.join("\n\n")
+        format!(
+            "{}\n_使用 /comment \\<id\\> 给评价写评价。_ ",
+            coms.join("\n\n")
+        )
     } else {
         "🈳 _此客体暂无评价！_".to_string()
     };
     let text = format!(
         "*👔 {} id: `{}` 的评价：*\n{}\n\
-        _使用 /comment \\<id\\> 给评价写评价。_ \
-        请选择操作：",
-        escape(supervisor.as_str()),
+        \n\
+        *请选择操作：*",
+        escape(supervisor),
         &object_id,
         text
     );
     Ok(text)
 }
 
-fn comments_msg_helper(object_id: &String) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+fn comments_msg_helper(
+    object_id: &String,
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
     find_comment(object_id)?
         .iter()
         .map(|c: &Comment| {
@@ -215,10 +233,9 @@ fn format_nested_comments(comments: Vec<String>) -> String {
             .join(" \\| \\-\n")
     } else {
         // " \\| _沙发虚位以待_".to_owned()
-        escape(" ◻")
+        escape(" ◻\n")
     }
 }
-
 
 #[test]
 fn my_test() {

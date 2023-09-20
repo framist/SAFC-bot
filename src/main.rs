@@ -2,7 +2,6 @@ use safc::db::*;
 use safc::msg::*;
 use safc::sec::*;
 
-use serde_json;
 use teloxide::types::ParseMode::MarkdownV2;
 use teloxide::utils::markdown::escape;
 use teloxide::{
@@ -14,6 +13,7 @@ use teloxide::{
     utils::command::BotCommands,
 };
 
+use url::Url;
 type MyDialogue = Dialogue<State, InMemStorage<State>>;
 type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -36,14 +36,12 @@ enum Command {
     Comment(String),
     #[command(description = "搜索")]
     Find(String),
-    #[command(description = "统计与状态（暂不可用）")]
-    Status,
 }
 
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
-    log::info!("Starting SAFT bot...");
+    log::info!("Starting SAFT bot...\nby Framecraft");
 
     let bot = Bot::from_env();
 
@@ -60,6 +58,8 @@ async fn main() {
 }
 
 /// 责任链模式
+/// branch 是分支的意思 参考：
+/// https://docs.rs/dptree/0.3.0/dptree/prelude/struct.Handler.html#the-difference-between-chaining-and-branching
 fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
     use dptree::case;
 
@@ -72,14 +72,13 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(case![Command::Help].endpoint(help_command))
         .branch(case![Command::Cancel].endpoint(cancel_command))
         .branch(case![Command::Info].endpoint(info_command))
-        .branch(case![Command::Status].endpoint(unable_command))
         .branch(case![Command::Find(arg)].endpoint(find_command))
         .branch(case![Command::Comment(arg)].endpoint(comment_command))
         .branch(dptree::endpoint(invalid_command));
 
     // 消息
     let message_handler = Update::filter_message()
-        .branch(command_handler) // branch 是分支的意思 https://docs.rs/dptree/0.3.0/dptree/prelude/struct.Handler.html#the-difference-between-chaining-and-branching
+        .branch(command_handler) // 命令也是消息的一种
         .branch(case![State::SchoolCate].endpoint(choose_university))
         .branch(case![State::University { school_cate }].endpoint(choose_department))
         .branch(
@@ -97,13 +96,20 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
             }]
             .endpoint(read_or_comment),
         )
-        .branch(case![State::Comment { object_id }].endpoint(add_comment))
+        .branch(
+            case![State::Comment {
+                object_id,
+                comment_type
+            }]
+            .endpoint(add_comment),
+        )
         .branch(
             case![State::Publish {
                 object_id,
                 comment,
                 comment_id,
-                date
+                date,
+                comment_type
             }]
             .endpoint(publish_comment),
         )
@@ -111,6 +117,7 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
 
     // 回调
     let callback_query_handler = Update::filter_callback_query()
+        .branch(case![State::StartCb].endpoint(start_cb))
         .branch(
             case![State::Read {
                 school_cate,
@@ -162,7 +169,7 @@ async fn cancel_command(bot: Bot, dialogue: MyDialogue, msg: Message) -> Handler
 
 /// find_command 快速查找
 /// todo 改为回调的形式，来支持翻页，查找功能选择等问题
-async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message) -> HandlerResult {
+async fn find_command(bot: Bot, _dialogue: MyDialogue, arg: String, msg: Message) -> HandlerResult {
     let j = |x: &[&str]| format!("%{}%", x.join("%"));
     // arg 有效性验证
     let args: Vec<&str> = arg.split(' ').collect();
@@ -174,7 +181,8 @@ async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message)
                     .map(|x| x.join(" > "))
                     .collect::<Vec<String>>();
                 let text = if text.len() > 20 {
-                    format!("条目过多，仅显示前 20 条\n{}", text[..20].join("\n"))  // todo 应能翻页来显示所有
+                    format!("条目过多，仅显示前 20 条\n{}", text[..20].join("\n"))
+                // todo 应能翻页来显示所有
                 } else {
                     text.join("\n")
                 };
@@ -200,7 +208,8 @@ async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message)
                     })
                     .collect::<Vec<String>>();
                 let text = if text.len() > 5 {
-                    format!("_条目过多，仅显示前 5 条_\n{}", text[..5].join("\n"))  // todo 应能翻页来显示所有
+                    format!("_条目过多，仅显示前 5 条_\n{}", text[..5].join("\n"))
+                // todo 应能翻页来显示所有
                 } else {
                     text.join("\n")
                 };
@@ -217,16 +226,16 @@ async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message)
     bot.send_message(
         msg.chat.id,
         "使用方法： \n\
-                /find <客体 | 评价> <关键字 1> [关键字...]\n\
-            例如：
-                /find 客体 习__
-                /find 评价 前途无量
+            - /find <客体 | 评价> <关键字 1> [关键字...]\n\
+            例如：\n\
+            - /find 客体 习__\n\
+            - /find 评价 前途 无量\n\
             可选的高级操作：\n\
-                您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\
+            - 您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
             目前的此命令操作是临时的，后续会改为内联按钮的形式来支持翻页，功能选择等",
     )
     .await?;
-    return Ok(());
+    Ok(())
 }
 
 /// 直接评价命令处理函数
@@ -237,30 +246,41 @@ async fn comment_command(
     msg: Message,
 ) -> HandlerResult {
     // arg 有效性验证
-    if arg.is_empty() || find_comment(&arg)?.is_empty() {
-        bot.send_message(msg.chat.id, "使用方法： /comment <有效 id>")
+    if arg.is_empty() {
+        bot.send_message(msg.chat.id, "使用方法： /comment <id>")
             .await?;
         return Ok(());
     }
 
-    let object_id = arg;
+    if let Some(t) = if_object_exists(&arg)? {
+        let object_id = arg;
 
-    let text = format!(
-        "🆔 `{object_id}`\n\
-        \n请写下您对此客体的评价："
-    );
+        let text = format!(
+            "🆔 `{object_id}`\n\
+            \n请写下您对此客体的评价："
+        );
 
-    bot.send_message(msg.chat.id, text)
-        .reply_to_message_id(msg.id)
-        .parse_mode(MarkdownV2)
-        .reply_markup(KeyboardRemove::new())
-        .await?;
+        bot.send_message(msg.chat.id, text)
+            .reply_to_message_id(msg.id)
+            .parse_mode(MarkdownV2)
+            .reply_markup(KeyboardRemove::new())
+            .await?;
 
-    dialogue.update(State::Comment { object_id }).await?; // 更新会话状态
-    Ok(())
+        dialogue
+            .update(State::Comment {
+                object_id,
+                comment_type: t,
+            })
+            .await?; // 更新会话状态
+        return Ok(());
+    } else {
+        bot.send_message(msg.chat.id, "❌ - 非有效 id")
+            .await?;
+        return Ok(());
+    }
 }
 
-async fn unable_command(bot: Bot, msg: Message) -> HandlerResult {
+async fn _unable_command(bot: Bot, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, TgResponse::NotImplemented.to_string())
         .await?;
     Ok(())
@@ -283,8 +303,8 @@ async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
     Ok(())
 }
 
-/// 开始对话，并向用户询问他们的 school_cate。
-async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
+/// old 开始对话，并向用户询问他们的 school_cate。
+async fn _start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     let data = find_school_cate()?;
     let keyboard = _convert_to_n_columns_keyboard(data, 3);
     bot.send_message(msg.chat.id, TgResponse::Hello.to_string())
@@ -292,6 +312,77 @@ async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
         .reply_markup(KeyboardMarkup::new(keyboard))
         .await?;
     dialogue.update(State::SchoolCate).await?; // 更新会话状态
+    Ok(())
+}
+
+/// 开始
+async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
+    bot.send_message(msg.chat.id, TgResponse::Hello.to_string())
+        .parse_mode(MarkdownV2)
+        .reply_markup(InlineKeyboardMarkup::new([
+            vec![InlineKeyboardButton::callback(
+                "🌳 开始查询！",
+                serde_json::to_string(&StartOp::Tree).unwrap(),
+            )],
+            vec![
+                InlineKeyboardButton::callback(
+                    "👔 快搜教师",
+                    serde_json::to_string(&StartOp::FindSupervisor).unwrap(),
+                ),
+                InlineKeyboardButton::callback(
+                    "💬 快搜评论",
+                    serde_json::to_string(&StartOp::FindComment).unwrap(),
+                ),
+            ],
+            vec![
+                InlineKeyboardButton::callback(
+                    "📊",
+                    serde_json::to_string(&StartOp::Status).unwrap(),
+                ),
+                InlineKeyboardButton::url("🏛️", Url::parse("https://t.me/SAFC_group").unwrap()),
+                // InlineKeyboardButton::url("🌐", Url::parse("https://").unwrap()),
+                InlineKeyboardButton::url("🐱", Url::parse(GITHUB_URL).unwrap()),
+            ],
+        ]))
+        .reply_to_message_id(msg.id)
+        .await?;
+    dialogue.update(State::StartCb).await?; // 更新会话状态
+    Ok(())
+}
+
+async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerResult {
+    bot.answer_callback_query(q.id).await?;
+    if let Some(op) = &q.data {
+        match serde_json::from_str(op)? {
+            StartOp::Tree => {
+                let data = find_school_cate()?;
+                let keyboard = _convert_to_n_columns_keyboard(data, 3);
+                let text = "您想查询或评价的「学校类别」是？您可以直接输入或者在下面的键盘选择框中选择\n\
+                    _键盘选择框中没有的也可以直接输入来新建；如果是上个类别本身请选择或输入 `self`。下同_\n";
+                bot.send_message(dialogue.chat_id(), text)
+                    .parse_mode(MarkdownV2)
+                    .reply_markup(KeyboardMarkup::new(keyboard))
+                    .await?;
+                dialogue.update(State::SchoolCate).await?; // 更新会话状态
+            }
+            StartOp::FindSupervisor => {
+                // let text = "请回复你要查找的 👔\n\
+                // 可选：您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
+                // 例如：习__\n\
+                // 也可以使用命令 /find 客体 习__\n";
+                let text = "功能尚未实现\n请使用命令 /find";
+                bot.send_message(dialogue.chat_id(), text).await?;
+            }
+            StartOp::FindComment => {
+                let text = "功能尚未实现\n请使用命令 /find";
+                bot.send_message(dialogue.chat_id(), text).await?;
+            }
+            StartOp::Status => {
+                let text = db_status()?;
+                bot.send_message(dialogue.chat_id(), text).await?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -493,7 +584,7 @@ async fn read_or_comment_cb(
     // https://core.telegram.org/bots/api#callbackquery
     bot.answer_callback_query(q.id).await?;
     if let Some(op) = &q.data {
-        match serde_json::from_str(&op)? {
+        match serde_json::from_str(op)? {
             ObjectOp::Read => {
                 let text = get_comment_msg(&object_id, &supervisor)?;
                 // Edit text of the message to which the buttons were attached
@@ -519,7 +610,7 @@ async fn read_or_comment_cb(
             }
             ObjectOp::Add => {
                 // 增加评价客体
-                add_object_to_database(
+                add_object_to_db(
                     &school_cate,
                     &university,
                     &department,
@@ -554,13 +645,19 @@ async fn read_or_comment_cb(
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text).await?;
                 } // else ... todo
-                dialogue.update(State::Comment { object_id }).await?; // 更新会话状态
+                dialogue
+                    .update(State::Comment {
+                        object_id,
+                        comment_type: CommentType::Teacher,
+                    })
+                    .await?; // 更新会话状态
             }
             ObjectOp::End => {
                 bot.send_message(
                     dialogue.chat_id(),
-                    format!("谢谢！本次对话结束。目前为测试版本，我们期待您的使用反馈"),
+                    "谢谢！本次对话结束。目前为测试版本，我们期待您的使用反馈".to_string(),
                 )
+                .reply_markup(KeyboardRemove::new())
                 .await?;
                 dialogue.exit().await?; // 结束会话
             }
@@ -635,7 +732,7 @@ async fn invalid_callback_query(bot: Bot, q: CallbackQuery) -> HandlerResult {
 async fn add_comment(
     bot: Bot,
     dialogue: MyDialogue,
-    object_id: String, // Available from `State::...`.
+    (object_id, comment_type): (String, CommentType), // Available from `State::...`.
     msg: Message,
 ) -> HandlerResult {
     if let Some(comment) = msg.text().map(ToOwned::to_owned) {
@@ -644,16 +741,17 @@ async fn add_comment(
         bot.send_message(
             msg.chat.id,
             format!(
-                "您对 {} 的评价是\n\
-                ```\n{}\n```\nid: `{}` \\| data: {}\n\
+                "您对 `{}` 的评价是\n\
+                id: `{}` \\| data: {}\n\
+                ```\n{}\n```\n\
                 确认发布？如确认请输入「发布人 OTP」，之后将发布评价;\
                 取消请 /cancel  *您只能在此取消！*\n\
                 _注：「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论，\
                 如不需要，输入随机值即可_",
                 &object_id,
-                escape(comment.as_str()),
                 comment_id,
-                escape(date.as_str())
+                escape(date.as_str()),
+                escape(comment.as_str())
             ),
         )
         .reply_to_message_id(msg.id)
@@ -665,6 +763,7 @@ async fn add_comment(
                 comment,
                 comment_id,
                 date,
+                comment_type,
             })
             .await?; // 更新会话状态
     } else {
@@ -678,16 +777,22 @@ async fn add_comment(
 async fn publish_comment(
     bot: Bot,
     dialogue: MyDialogue,
-    (object_id, comment, comment_id, date): (String, String, String, String), // Available from `State::...`.
+    (object_id, comment, comment_id, date, comment_type): (
+        String,
+        String,
+        String,
+        String,
+        CommentType,
+    ), // Available from `State::...`.
     msg: Message,
 ) -> HandlerResult {
     if let Some(otp) = msg.text().map(ToOwned::to_owned) {
-        add_comment_to_database(
+        add_comment_to_db(
             &object_id,
             &comment,
             &date,
             SourceCate::Telegram,
-            &"teacher".to_string(), // TODO
+            &comment_type.to_string(), // TODO
             &otp,
         )?;
         bot.send_message(

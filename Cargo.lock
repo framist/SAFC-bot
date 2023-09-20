@@ -1525,6 +1525,7 @@ dependencies = [
  "strum_macros",
  "teloxide",
  "tokio",
+ "url",
 ]
 
 [[package]]
