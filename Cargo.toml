@@ -37,13 +37,7 @@ url = "2.4"
 actix-web = "4" 
 
 # database
-# `bundled` causes us to automatically compile and link in an up to date
-# version of SQLite for you. This avoids many common build issues, and
-# avoids depending on the version of SQLite on the users system (or your
-# system), which may be old or missing. It's the right choice for most
-# programs that control their own SQLite databases.
-#
-# That said, it's not ideal for all scenarios and in particular, generic
-# libraries built around `rusqlite` should probably not enable it, which
-# is why it is not a default feature -- it could become hard to disable.
 rusqlite = { version = "0.29.0", features = ["bundled"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.22"
+lazy_static = "1.4.0"

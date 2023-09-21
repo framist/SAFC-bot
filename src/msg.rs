@@ -7,9 +7,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::*;
 
+// 有没有更优雅的方法？
+use lazy_static::lazy_static;
+lazy_static! {
+    pub static ref SAFC_DB: SAFCdb = SAFCdb::new();
+}
+
 pub const GITHUB_URL: &str = "https://github.com/framist/SAFC-bot";
 
-const BOT_INFO: &str = r#"*大学生反诈中心*
+const BOT_INFO: &str = r"*大学生反诈中心*
 
 _社群，保护，开放_
 
@@ -20,7 +26,7 @@ _社群，保护，开放_
 *telegram 群组社区* @SAFC\_group —— 公告与交流平台
 
 [GitHub 项目主页](https://github.com/framist/SAFC-bot)
-"#;
+";
 
 pub enum TgResponse {
     Hello,
@@ -201,7 +207,8 @@ pub fn get_comment_msg(
 fn comments_msg_helper(
     object_id: &String,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
-    find_comment(object_id)?
+    SAFC_DB
+        .find_comment(object_id)?
         .iter()
         .map(|c: &Comment| {
             Ok(format!(

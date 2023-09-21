@@ -14,6 +14,7 @@ use teloxide::{
 };
 
 use url::Url;
+
 type MyDialogue = Dialogue<State, InMemStorage<State>>;
 type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
@@ -157,7 +158,7 @@ async fn info_command(bot: Bot, msg: Message) -> HandlerResult {
 async fn cancel_command(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     bot.send_message(
         msg.chat.id,
-        "您终止了本次会话\n再见！本次对话结束。我们期待您的使用反馈",
+        "您终止了本次会话\n再见！本次对话结束，使用 /start 重新开始。\n我们期待您的使用反馈",
     )
     .reply_to_message_id(msg.id)
     .reply_markup(KeyboardRemove::new())
@@ -176,7 +177,8 @@ async fn find_command(bot: Bot, _dialogue: MyDialogue, arg: String, msg: Message
     if args.len() >= 2 {
         match args[0] {
             "客体" => {
-                let text = find_supervisor_like(&j(&args[1..]))?
+                let text = SAFC_DB
+                    .find_supervisor_like(&j(&args[1..]))?
                     .into_iter()
                     .map(|x| x.join(" > "))
                     .collect::<Vec<String>>();
@@ -192,7 +194,8 @@ async fn find_command(bot: Bot, _dialogue: MyDialogue, arg: String, msg: Message
                 return Ok(());
             }
             "评价" => {
-                let text = find_comment_like(&j(&args[1..]))?
+                let text = SAFC_DB
+                    .find_comment_like(&j(&args[1..]))?
                     .iter()
                     .map(|c: &Comment| {
                         format!(
@@ -252,7 +255,7 @@ async fn comment_command(
         return Ok(());
     }
 
-    if let Some(t) = if_object_exists(&arg)? {
+    if let Some(t) = SAFC_DB.if_object_exists(&arg)? {
         let object_id = arg;
 
         let text = format!(
@@ -304,7 +307,8 @@ async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
 
 /// old 开始对话，并向用户询问他们的 school_cate。
 async fn _start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
-    let data = find_school_cate()?;
+    // let data = find_school_cate()?;
+    let data = SAFC_DB.find_school_cate()?;
     let keyboard = _convert_to_n_columns_keyboard(data, 3);
     bot.send_message(msg.chat.id, TgResponse::Hello.to_string())
         .parse_mode(MarkdownV2)
@@ -354,7 +358,7 @@ async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerRe
     if let Some(op) = &q.data {
         match serde_json::from_str(op)? {
             StartOp::Tree => {
-                let data = find_school_cate()?;
+                let data = SAFC_DB.find_school_cate()?;
                 let keyboard = _convert_to_n_columns_keyboard(data, 3);
                 let text = "您想查询或评价的「学校类别」是？您可以直接输入或者在下面的键盘选择框中选择\n\
                     _键盘选择框中没有的也可以直接输入来新建；如果是上个类别本身请选择或输入 `self`。下同_\n";
@@ -377,7 +381,7 @@ async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerRe
                 bot.send_message(dialogue.chat_id(), text).await?;
             }
             StartOp::Status => {
-                let text = db_status()?;
+                let text = SAFC_DB.db_status()?;
                 bot.send_message(dialogue.chat_id(), text).await?;
             }
         }
@@ -401,7 +405,7 @@ async fn choose_university(bot: Bot, dialogue: MyDialogue, msg: Message) -> Hand
 }
 
 async fn choose_university_msg(s_c: &String, bot: &Bot, msg: &Message) -> HandlerResult {
-    let keyboard = _convert_to_n_columns_keyboard(find_university(s_c)?, 2);
+    let keyboard = _convert_to_n_columns_keyboard(SAFC_DB.find_university(s_c)?, 2);
     bot.send_message(msg.chat.id, format!("🧭 {s_c}\n您想查询的「学校」是："))
         .reply_markup(KeyboardMarkup::new(keyboard).input_field_placeholder("学校？".to_string()))
         .reply_to_message_id(msg.id)
@@ -437,7 +441,7 @@ async fn choose_department_msg(
     bot: &Bot,
     msg: &Message,
 ) -> HandlerResult {
-    let keyboard = _convert_to_n_columns_keyboard(find_department(s_c, university)?, 1);
+    let keyboard = _convert_to_n_columns_keyboard(SAFC_DB.find_department(s_c, university)?, 1);
     bot.send_message(
         msg.chat.id,
         format!("🧭 {s_c} 🏫 {university}\n您想查询的「学院」是："),
@@ -478,8 +482,10 @@ async fn choose_supervisor_msg(
     bot: &Bot,
     msg: &Message,
 ) -> HandlerResult {
-    let keyboard =
-        _convert_to_n_columns_keyboard(find_supervisor(school_cate, university, department)?, 3);
+    let keyboard = _convert_to_n_columns_keyboard(
+        SAFC_DB.find_supervisor(school_cate, university, department)?,
+        3,
+    );
     bot.send_message(
         msg.chat.id,
         format!("🧭 {school_cate} 🏫 {university} 🏢 {department}\n您想查询的「导师等客体」是："),
@@ -498,7 +504,7 @@ async fn read_or_comment(
     msg: Message,
 ) -> HandlerResult {
     if let Some(supervisor) = msg.text().map(ToOwned::to_owned) {
-        let obj = find_object(&university, &department, &supervisor)?;
+        let obj = SAFC_DB.find_object(&university, &department, &supervisor)?;
         match obj.len() {
             0 => {
                 let object_id = hash_object_id(&university, &department, &supervisor);
@@ -609,7 +615,7 @@ async fn read_or_comment_cb(
             }
             ObjectOp::Add => {
                 // 增加评价客体
-                add_object_to_db(
+                SAFC_DB.add_object_to_db(
                     &school_cate,
                     &university,
                     &department,
@@ -654,7 +660,7 @@ async fn read_or_comment_cb(
             ObjectOp::End => {
                 bot.send_message(
                     dialogue.chat_id(),
-                    "谢谢！本次对话结束。目前为测试版本，我们期待您的使用反馈".to_string(),
+                    "谢谢！本次对话结束，使用 /start 重新开始。\n目前为测试版本，我们期待您的使用反馈".to_string(),
                 )
                 .reply_markup(KeyboardRemove::new())
                 .await?;
@@ -786,7 +792,7 @@ async fn publish_comment(
     msg: Message,
 ) -> HandlerResult {
     if let Some(otp) = msg.text().map(ToOwned::to_owned) {
-        add_comment_to_db(
+        SAFC_DB.add_comment_to_db(
             &object_id,
             &comment,
             &date,
