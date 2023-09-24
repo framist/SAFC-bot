@@ -2,8 +2,8 @@
   <h1>🏛️</h1>
   <!-- <img width="150" heigth="150" src="./doc/asserts/icon.png"> -->
   <h1>SAFC - bot</h1>
-  <b>🧪 in developing</b><br/>
-  <i>社群，保护，开放</i><br/>
+  <b>🧪 in developing but already in servering!</b><br/>
+  <i>更安全开放的一个导师评价平台</i><br/>
   <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | --> 
   <a href="https://t.me/SAFC_bak_bot">Telegram 机器人</a> |
   <a href="https://t.me/SAFC_group">群组社区</a><br/> 
@@ -54,19 +54,21 @@
 
 除了用户主动提交信息，我们也会尽可能地搜集、爬取可靠信息，让数据库更加全面。
 
+*带计划：去中心化 —— 星星之火 可以燎原*
+
 ## 参考
 
 <details>
 <summary>初始数据来源：</summary>
 https://github.com/pengp25/RateMySupervisor
 
-https://gitee.com/wdwdwd123/RateMySupervisor
+https://gitee.com/wdwdwd123/RateMySupervisor 难以找到哪个是原始 RateMySupervisor 仓库了，但这个好像数据更新一点
 </details>
 
 <details>
 <summary>参考项目：</summary>
 开发参考： 
-https://github.com/magnickolas/remindee-bot
+前端页面魔改一下 RateMySupervisor 的，主要做后端和 API
 </details>
 
 
@@ -78,7 +80,7 @@ https://github.com/magnickolas/remindee-bot
 3. Clone this repository.
 4. Set the environment variables:
    ```sh
-   export TELOXIDE_TOKEN=<BOT TOKEN e.g.  123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
+   export TELOXIDE_TOKEN=<BOT TOKEN e.g. 123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
    export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
    ```
 5. Run `cargo run` from the repository directory.
@@ -93,20 +95,23 @@ https://github.com/magnickolas/remindee-bot
   - [ ] 模块重构
   - [ ] 分离与定时备份、发布
 - tg bot 功能
-  - `/start` 重构 —— 作为功能指引
+  - [x] `/start` 重构 —— 作为功能指引
   - [x] 嵌套评价
     - [ ] 更方便优雅地评价（翻页、回调）
   - [ ] 模糊/快速 搜索 - 转为内联按钮的形式
   - [ ] 词云？关键字提取？
-  - [ ] 数据汇报
-  - [ ] 抗攻击
-  - [ ] 数据定时上传备份
+  - [x] 数据汇报
+  - [ ] 抗攻击 - 按 uid 限制次数
+  - [ ] 数据定时上传备份到 @SAFC_group
 - web
   - [ ] 待定 actix-web? axum?
 - 部署
   - [ ] env 转而使用配置文件的形式 & docker
 - 数据
   - [ ] wiki 形式的客体基本信息
+- 文档
+  - [ ] 开发文档
+  - [ ] 使用文档，包括导师评价规范、隐私目的的文字指导、社区公约等
 - **带计划！**
   - [ ] 基于 Telegram 通讯的分布式数据库与分布式 bot
 

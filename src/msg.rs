@@ -5,7 +5,7 @@ use teloxide::types::InlineKeyboardMarkup;
 
 use serde::{Deserialize, Serialize};
 
-use crate::db::*;
+use safc::db::*;
 
 // 有没有更优雅的方法？
 use lazy_static::lazy_static;
@@ -32,6 +32,7 @@ pub enum TgResponse {
     Hello,
     Info,
     RetryErrNone,
+    #[allow(unused)]
     NotImplemented,
 }
 
@@ -55,7 +56,6 @@ impl ToString for TgResponse {
 }
 
 /// 流程
-/// 这个数据结构写得太烂了，有待优化
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 pub enum State {
     #[default]
@@ -75,21 +75,15 @@ pub enum State {
         department: String,
     },
     Read {
-        school_cate: String,
-        university: String,
-        department: String,
-        supervisor: String,
-        object_id: String,
+        obj_teacher: ObjTeacher,
     },
     Comment {
-        object_id: String,
+        object_id: String, // 待重构为 Obj
         comment_type: CommentType,
     },
     Publish {
-        object_id: String,
+        object_id: String, // 待重构为 Obj
         comment: String,
-        comment_id: String,
-        date: String,
         comment_type: CommentType,
     },
 }
@@ -136,8 +130,6 @@ impl From<String> for ObjectOp {
         serde_json::from_str(&value).unwrap()
     }
 }
-
-use serde_json;
 
 pub fn build_op_keyboard() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new([
@@ -210,7 +202,7 @@ fn comments_msg_helper(
     SAFC_DB
         .find_comment(object_id)?
         .iter()
-        .map(|c: &Comment| {
+        .map(|c: &ObjComment| {
             Ok(format!(
                 "💬 *data {} \\| from {} \\| id `{}`*\n\
                 {}\n\

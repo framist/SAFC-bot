@@ -1,6 +1,8 @@
 use safc::db::*;
-use safc::msg::*;
+// use safc::msg::*;
 use safc::sec::*;
+mod msg;
+use msg::*;
 
 use teloxide::types::ParseMode::MarkdownV2;
 use teloxide::utils::markdown::escape;
@@ -15,7 +17,7 @@ use teloxide::{
 
 use url::Url;
 
-type MyDialogue = Dialogue<State, InMemStorage<State>>;
+type MyDialogue = Dialogue<State, InMemStorage<State>>; // ? 要使用 sqlite 存储状态吗
 type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 #[derive(BotCommands, Clone, PartialEq, Debug)]
@@ -108,8 +110,6 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
             case![State::Publish {
                 object_id,
                 comment,
-                comment_id,
-                date,
                 comment_type
             }]
             .endpoint(publish_comment),
@@ -119,16 +119,7 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
     // 回调
     let callback_query_handler = Update::filter_callback_query()
         .branch(case![State::StartCb].endpoint(start_cb))
-        .branch(
-            case![State::Read {
-                school_cate,
-                university,
-                department,
-                supervisor,
-                object_id
-            }]
-            .endpoint(read_or_comment_cb),
-        )
+        .branch(case![State::Read { obj_teacher }].endpoint(read_or_comment_cb))
         .branch(dptree::endpoint(invalid_callback_query));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
@@ -197,7 +188,7 @@ async fn find_command(bot: Bot, _dialogue: MyDialogue, arg: String, msg: Message
                 let text = SAFC_DB
                     .find_comment_like(&j(&args[1..]))?
                     .iter()
-                    .map(|c: &Comment| {
+                    .map(|c: &ObjComment| {
                         format!(
                             "💬 *针对 object `{}` 的评价：*\n\
                             *data {} \\| from {} \\| id `{}`*\n\
@@ -324,7 +315,7 @@ async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
         .parse_mode(MarkdownV2)
         .reply_markup(InlineKeyboardMarkup::new([
             vec![InlineKeyboardButton::callback(
-                "🌳 开始查询！",
+                "🌳 开始查询&评价！",
                 serde_json::to_string(&StartOp::Tree).unwrap(),
             )],
             vec![
@@ -504,9 +495,9 @@ async fn read_or_comment(
     msg: Message,
 ) -> HandlerResult {
     if let Some(supervisor) = msg.text().map(ToOwned::to_owned) {
-        let obj = SAFC_DB.find_object(&university, &department, &supervisor)?;
-        match obj.len() {
-            0 => {
+        let obj = SAFC_DB.find_object_with_path(&university, &department, &supervisor)?;
+        match obj {
+            None => {
                 let object_id = hash_object_id(&university, &department, &supervisor);
                 bot.send_message(
                     msg.chat.id,
@@ -529,15 +520,19 @@ async fn read_or_comment(
                 .await?;
                 dialogue
                     .update(State::Read {
-                        school_cate,
-                        university,
-                        department,
-                        supervisor,
-                        object_id,
+                        obj_teacher: ObjTeacher {
+                            school_cate,
+                            university,
+                            department,
+                            supervisor,
+                            date: get_current_date(),
+                            info: None,
+                            object_id,
+                        },
                     })
                     .await?; // 更新会话状态
             }
-            1 => {
+            Some(obj_teacher) => {
                 bot.send_message(
                     msg.chat.id,
                     format!(
@@ -548,19 +543,7 @@ async fn read_or_comment(
                 .reply_to_message_id(msg.id)
                 .reply_markup(build_op_keyboard())
                 .await?;
-                dialogue
-                    .update(State::Read {
-                        school_cate,
-                        university,
-                        department,
-                        supervisor,
-                        object_id: obj[0].to_owned(),
-                    })
-                    .await?; // 更新会话状态
-            }
-            _ => {
-                log::error!("obj 不唯一");
-                panic!("obj 不唯一");
+                dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
             }
         }
     } else {
@@ -574,54 +557,39 @@ async fn read_or_comment(
 async fn read_or_comment_cb(
     bot: Bot,
     dialogue: MyDialogue,
-    (school_cate, university, department, supervisor, object_id): (
-        String,
-        String,
-        String,
-        String,
-        String,
-    ), // Available from `State::...`.
+    obj_teacher: ObjTeacher, // Available from `State::...`.
     q: CallbackQuery,
 ) -> HandlerResult {
-    // Tell telegram that we've seen this query, to remove 🕑 icons from the
-    // clients. You could also use `answer_callback_query`'s optional
-    // parameters to tweak what happens on the client side.
-    // https://core.telegram.org/bots/api#callbackquery
+    let ObjTeacher {
+        school_cate,
+        university,
+        department,
+        supervisor,
+        date,
+        info,
+        object_id,
+    } = obj_teacher.clone();
     bot.answer_callback_query(q.id).await?;
     if let Some(op) = &q.data {
         match serde_json::from_str(op)? {
             ObjectOp::Read => {
                 let text = get_comment_msg(&object_id, &supervisor)?;
-                // Edit text of the message to which the buttons were attached
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text)
                         .reply_markup(build_op_keyboard())
                         .parse_mode(MarkdownV2)
                         .await?;
-                } else if let Some(id) = q.inline_message_id {
-                    bot.edit_message_text_inline(id, text).await?; // 使用户自己发言的情况（inline 模式）todo
-                } else {
-                    log::error!("unhanded q.message");
                 }
-                dialogue
-                    .update(State::Read {
-                        school_cate,
-                        university,
-                        department,
-                        supervisor,
-                        object_id,
-                    })
-                    .await?; // 更新会话状态
+                // else if let Some(id) = q.inline_message_id {
+                //     bot.edit_message_text_inline(id, text).await?; // 使用户自己发言的情况（inline 模式）todo
+                // } else {
+                //     log::error!("unhanded q.message");
+                // }
+                dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
             }
             ObjectOp::Add => {
                 // 增加评价客体
-                SAFC_DB.add_object_to_db(
-                    &school_cate,
-                    &university,
-                    &department,
-                    &supervisor,
-                    &get_current_date(),
-                )?;
+                SAFC_DB.add_object(&obj_teacher)?;
                 let text = format!(
                     "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
                     评价客体已增加！感谢您的贡献 🌷"
@@ -632,15 +600,7 @@ async fn read_or_comment_cb(
                         .reply_markup(build_op_keyboard())
                         .await?;
                 } // else ... todo
-                dialogue
-                    .update(State::Read {
-                        school_cate,
-                        university,
-                        department,
-                        supervisor,
-                        object_id,
-                    })
-                    .await?; // 更新会话状态
+                dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
             }
             ObjectOp::Commet => {
                 let text = format!(
@@ -669,23 +629,16 @@ async fn read_or_comment_cb(
             ObjectOp::Info => {
                 let text = format!(
                     "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
-                    {}",
-                    TgResponse::NotImplemented.to_string()
+                    该客体的初次添加日期：{}\n\
+                    wiki：{:?} （此功能有待开发）",
+                    date, info
                 );
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text)
                         .reply_markup(build_op_keyboard())
                         .await?;
                 } // else ... todo
-                dialogue
-                    .update(State::Read {
-                        school_cate,
-                        university,
-                        department,
-                        supervisor,
-                        object_id,
-                    })
-                    .await?; // 更新会话状态
+                dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
             }
             ObjectOp::ReturnU => {
                 choose_university_msg(&school_cate, &bot, &q.message.unwrap()).await?;
@@ -741,21 +694,18 @@ async fn add_comment(
     msg: Message,
 ) -> HandlerResult {
     if let Some(comment) = msg.text().map(ToOwned::to_owned) {
-        let date = get_current_date();
-        let comment_id = hash_comment_id(&object_id, &comment, &date);
+        // let date = get_current_date();
+        // let comment_id = hash_comment_id(&object_id, &comment, &date);
         bot.send_message(
             msg.chat.id,
             format!(
                 "您对 `{}` 的评价是\n\
-                id: `{}` \\| data: {}\n\
                 ```\n{}\n```\n\
                 确认发布？如确认请输入「发布人 OTP」，之后将发布评价;\
                 取消请 /cancel  *您只能在此取消！*\n\
                 _注：「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论，\
                 如不需要，输入随机值即可_",
                 &object_id,
-                comment_id,
-                escape(date.as_str()),
                 escape(comment.as_str())
             ),
         )
@@ -766,8 +716,6 @@ async fn add_comment(
             .update(State::Publish {
                 object_id,
                 comment,
-                comment_id,
-                date,
                 comment_type,
             })
             .await?; // 更新会话状态
@@ -782,36 +730,52 @@ async fn add_comment(
 async fn publish_comment(
     bot: Bot,
     dialogue: MyDialogue,
-    (object_id, comment, comment_id, date, comment_type): (
-        String,
-        String,
-        String,
-        String,
-        CommentType,
-    ), // Available from `State::...`.
+    (object_id, comment, comment_type): (String, String, CommentType), // Available from `State::...`.
     msg: Message,
 ) -> HandlerResult {
     if let Some(otp) = msg.text().map(ToOwned::to_owned) {
-        SAFC_DB.add_comment_to_db(
-            &object_id,
-            &comment,
-            &date,
+        let c = ObjComment::new_with_otp(
+            object_id.clone(),
+            comment,
             SourceCate::Telegram,
-            &comment_type.to_string(), // TODO
-            &otp,
-        )?;
-        bot.send_message(
-            msg.chat.id,
-            format!(
-                "_您的 OTP 已销毁_\n\
-                评价「`{comment_id}`」已发布！感谢您的贡献 🌷"
-            ),
-        )
-        .reply_to_message_id(msg.id)
-        .parse_mode(MarkdownV2)
-        .await?;
-        dialogue.exit().await?; // TODO
-        log::info!("{comment_id} 评价已发布");
+            comment_type,
+            otp,
+        );
+        SAFC_DB.add_comment(&c)?; // ? 有些可能的错误需提示用户
+        log::info!("{} 评价已发布", c.id);
+
+        match SAFC_DB.find_objteacher_with_id(object_id.as_str())? {
+            Some(obj_teacher) => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!(
+                        "_您的 OTP 已销毁_\n\
+                        评价「`{}`」已发布！感谢您的贡献 🌷",
+                        c.id
+                    ),
+                )
+                .reply_to_message_id(msg.id)
+                .parse_mode(MarkdownV2)
+                .reply_markup(build_op_keyboard())
+                .await?;
+                dialogue.update(State::Read { obj_teacher }).await?;
+            }
+            None => {
+                bot.send_message(
+                    msg.chat.id,
+                    format!(
+                        "_您的 OTP 已销毁_\n\
+                        嵌套评价「`{}`」已发布！感谢您的贡献 🌷\n\
+                        使用 /start 重新开始",
+                        c.id
+                    ),
+                )
+                .reply_to_message_id(msg.id)
+                .parse_mode(MarkdownV2)
+                .await?;
+                dialogue.exit().await?; // TODO 嵌套评价面板
+            }
+        }
     } else {
         bot.send_message(msg.chat.id, TgResponse::RetryErrNone.to_string())
             .await?;

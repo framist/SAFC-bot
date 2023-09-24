@@ -45,12 +45,12 @@ use chrono;
 
 use r2d2_sqlite::{self, SqliteConnectionManager};
 
-type Pool = r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>;
+pub type Pool = r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>;
 type HandlerResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 // type HandlerResult<T, E = Box<dyn std::error::Error + Send + Sync>> > = std::result::Result<T, E>;
 
 /// 来源分类：admin, urfire, telegram...
-#[derive(Debug, EnumString, Display, PartialEq)] // ?
+#[derive(Debug, EnumString, Display, PartialEq, Clone, Serialize, Deserialize)] // ?
 #[strum(serialize_all = "lowercase")]
 pub enum SourceCate {
     Admin,
@@ -59,14 +59,24 @@ pub enum SourceCate {
     Web,
 }
 
-pub struct Object {
-    pub school_cate: SourceCate,
+pub enum Obj {
+    /// 导师...类客体
+    Object(ObjTeacher),
+    /// 评论类客体
+    Comment(ObjComment),
+}
+
+/// 对应数据库中的【客体表（主要是导师）】objects
+/// 只是 teacher-like，客体表的 object，不一定只是指导师
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ObjTeacher {
+    pub school_cate: String,
     pub university: String,
     pub department: String,
     pub supervisor: String,
     pub date: String,
     pub info: Option<String>,
-    pub object: String,
+    pub object_id: String, // 此客体的 id
 }
 
 /// 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like）
@@ -81,8 +91,9 @@ pub enum CommentType {
     Info,
 }
 
-#[derive(Debug)]
-pub struct Comment {
+/// 对应数据库中的【评价表】comments
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ObjComment {
     pub object: String,
     pub description: String,
     pub date: String,
@@ -92,8 +103,39 @@ pub struct Comment {
     pub id: String,
 }
 
+impl ObjComment {
+    pub fn new_with_otp(
+        object_id: String,
+        comment: String,
+        source_cate: SourceCate,
+        comment_type: CommentType,
+        otp: String,
+    ) -> Self {
+        let date = get_current_date();
+        let id = hash_comment_id(&object_id, &comment, &date);
+        let author_sign = Some(hash_author_sign(&id, &otp));
+        ObjComment {
+            object: object_id,
+            description: comment,
+            date,
+            source_cate,
+            comment_type,
+            author_sign,
+            id,
+        }
+    }
+}
+
 pub struct SAFCdb {
     pool: Pool,
+}
+
+impl Clone for SAFCdb {
+    fn clone(&self) -> Self {
+        Self {
+            pool: self.pool.clone(),
+        }
+    }
 }
 
 impl Default for SAFCdb {
@@ -174,23 +216,62 @@ impl SAFCdb {
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
-    pub fn find_object(
+    /// 查找客体 用路径的方式
+    /// 【客体表】objects  _学校类别 < 学校 < 学院 < 导师 - _日期 - _信息 - object (key)
+    /// - school_cate TEXT NOT NULL,
+    /// - university TEXT NOT NULL,
+    /// - department TEXT NOT NULL,
+    /// - supervisor TEXT NOT NULL,
+    /// - date TEXT NOT NULL,
+    /// - info TEXT,
+    /// - object TEXT NOT NULL,
+    /// - PRIMARY KEY (object)
+    pub fn find_object_with_path(
         &self,
         university: &String,
         department: &String,
         supervisor: &String,
-    ) -> HandlerResult<Vec<String>> {
+    ) -> HandlerResult<Option<ObjTeacher>> {
         let conn = self.pool.clone().get()?;
 
         let mut stmt = conn.prepare(
-            "SELECT DISTINCT object FROM objects WHERE \
+            "SELECT * FROM objects WHERE \
         supervisor=(?1) AND university=(?2) AND department=(?3)",
         )?;
 
         let rows = stmt.query_map([supervisor, university, department], |row| {
-            row.get::<_, String>(0)
+            Ok(ObjTeacher {
+                school_cate: row.get::<_, String>(0)?,
+                university: row.get::<_, String>(1)?,
+                department: row.get::<_, String>(2)?,
+                supervisor: row.get::<_, String>(3)?,
+                date: row.get::<_, String>(4)?,
+                info: row.get::<_, String>(5).ok(),
+                object_id: row.get::<_, String>(6)?,
+            })
         })?;
-        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+        Ok(rows.collect::<Result<Vec<_>, _>>()?.first().cloned())
+    }
+
+    /// 查找客体 用 id 的方式
+    /// 【客体表】objects  _学校类别 < 学校 < 学院 < 导师 - _日期 - _信息 - object (key)
+    pub fn find_objteacher_with_id(&self, object_id: &str) -> HandlerResult<Option<ObjTeacher>> {
+        let conn = self.pool.clone().get()?;
+
+        let mut stmt = conn.prepare("SELECT * FROM objects WHERE object=(?1)")?;
+
+        let rows = stmt.query_map([object_id], |row| {
+            Ok(ObjTeacher {
+                school_cate: row.get::<_, String>(0)?,
+                university: row.get::<_, String>(1)?,
+                department: row.get::<_, String>(2)?,
+                supervisor: row.get::<_, String>(3)?,
+                date: row.get::<_, String>(4)?,
+                info: row.get::<_, String>(5).ok(),
+                object_id: row.get::<_, String>(6)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?.first().cloned())
     }
 
     /// object 是否存在
@@ -231,33 +312,30 @@ impl SAFCdb {
     /// - type TEXT NOT NULL,
     /// - author_sign TEXT,
     /// - id TEXT NOT NULL,
-    pub fn find_comment(&self, object_id: &String) -> HandlerResult<Vec<Comment>> {
+    pub fn find_comment(&self, object_id: &String) -> HandlerResult<Vec<ObjComment>> {
         let conn = self.pool.clone().get()?;
 
         let mut stmt = conn.prepare("SELECT * FROM comments WHERE object=? ")?;
         let rows = stmt.query_map([object_id], |row| {
-            Ok(Comment {
+            Ok(ObjComment {
                 object: row.get::<_, String>(0)?,
                 description: row.get::<_, String>(1)?,
                 date: row.get::<_, String>(2)?,
                 source_cate: SourceCate::from_str(row.get::<_, String>(3)?.as_str()).unwrap(),
                 comment_type: CommentType::from_str(row.get::<_, String>(4)?.as_str()).unwrap(),
-                author_sign: match row.get::<_, String>(5) {
-                    Ok(s) => Some(s),
-                    Err(_) => None,
-                },
+                author_sign: row.get::<_, String>(5).ok(),
                 id: row.get::<_, String>(6)?,
             })
         })?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
-    pub fn find_comment_like(&self, s: &String) -> HandlerResult<Vec<Comment>> {
+    pub fn find_comment_like(&self, s: &String) -> HandlerResult<Vec<ObjComment>> {
         let conn = self.pool.clone().get()?;
 
         let mut stmt = conn.prepare("SELECT * FROM comments WHERE description LIKE ? ")?;
         let rows = stmt.query_map([s], |row| {
-            Ok(Comment {
+            Ok(ObjComment {
                 object: row.get::<_, String>(0)?,
                 description: row.get::<_, String>(1)?,
                 date: row.get::<_, String>(2)?,
@@ -274,58 +352,40 @@ impl SAFCdb {
     }
 
     /// 增加评价客体，有一些值在函数内计算
-    pub fn add_object_to_db(
-        &self,
-        // conn: &Connection,
-        school_cate: &String,
-        university: &String,
-        department: &String,
-        supervisor: &String,
-        data: &String,
-    ) -> HandlerResult<()> {
+    pub fn add_object(&self, obj_teacher: &ObjTeacher) -> HandlerResult<()> {
         let conn = self.pool.clone().get()?;
-        let object_id = hash_object_id(university, department, supervisor);
-
         conn.execute(
-            "INSERT INTO objects (school_cate, university, department, supervisor, date, object) 
-        VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO objects (school_cate, university, department, supervisor, date, info, object) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)",
             params![
-                school_cate,
-                university,
-                department,
-                supervisor,
-                data,
-                object_id
+                obj_teacher.school_cate,
+                obj_teacher.university,
+                obj_teacher.department,
+                obj_teacher.supervisor,
+                obj_teacher.date,
+                obj_teacher.info,
+                obj_teacher.object_id
             ],
         )?;
 
         Ok(())
     }
 
-    pub fn add_comment_to_db(
-        &self,
-        object_id: &String,
-        comment: &String,
-        date: &String,
-        source_cate: SourceCate,
-        comment_type: &String,
-        otp: &String,
-    ) -> HandlerResult<()> {
+    /// 增加评价
+    pub fn add_comment(&self, obj_comment: &ObjComment) -> HandlerResult<()> {
         let conn = self.pool.clone().get()?;
-        let comment_id = hash_comment_id(object_id, comment, date);
-        let sign = hash_author_sign(&comment_id, otp);
         conn.execute(
             "INSERT INTO comments
         (object, description, date, source_cate, type, author_sign, id)
         VALUES (?, ?, ?, ?, ?, ?, ?)",
             params![
-                object_id,
-                comment,
-                date,
-                source_cate.to_string(),
-                comment_type,
-                sign,
-                comment_id
+                obj_comment.object,
+                obj_comment.description,
+                obj_comment.date,
+                obj_comment.source_cate.to_string(),
+                obj_comment.comment_type.to_string(),
+                obj_comment.author_sign,
+                obj_comment.id
             ],
         )?;
 
@@ -356,6 +416,8 @@ impl SAFCdb {
         ))
     }
 }
+
+impl ObjComment {}
 
 pub fn get_current_date() -> String {
     chrono::Local::now().format("%Y-%m-%d").to_string()
@@ -399,10 +461,7 @@ fn my_test() {
         db.find_department(&"985".to_string(), &"清华大学".to_string())
             .unwrap()
     );
-    // println!(
-    //     "{}",
-    //     comments_msg_md(&"b148b44fd82fda41".to_string()).unwrap()[0]
-    // );
+    println!("{:#?}", db.find_objteacher_with_id("918863e1af3b1e67"));
 }
 
 #[test]
