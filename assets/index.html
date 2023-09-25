@@ -1,12 +1,14 @@
 <html lang="en">
 <!-- SAFC web demo
-     fork from https://gitee.com/wdwdwd123/RateMySupervisor -->
+     this page's source code fork from https://gitee.com/wdwdwd123/RateMySupervisor
+     数据已开源。请珍惜服务器，不要爬取数据    
+-->
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <title>SAFC | 查看导师评价</title>
+    <title>SAFC - 查看导师评价</title>
 
     <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
@@ -17,13 +19,15 @@
     <div class="text-center">
         <h1>🏛️</h1>
         <h1>SAFC - Web</h1>
-        <b>实验版 web 界面 🧪 增加评价、嵌套评价等更多功能请使用 <a href="https://t.me/SAFC_bak_bot"> bot </a>！ </b><br />
-        <i>社群，安全，开源——不只是评价导师</i><br />
-        <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | -->
-        Web |
-        <a href="https://t.me/SAFC_bak_bot">Telegram 机器人</a> |
-        <a href="https://t.me/SAFC_group">群组社区</a> |
-        <a href="https://github.com/framist/SAFC-bot"> GitHub</a> <br />
+        <p>
+            <b>大学生反诈中心 web 端</b><br />
+            <i>社群，安全，开源——不只是评价导师</i><br />
+            <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | -->
+            Web（本站） |
+            <a href="https://t.me/SAFC_bak_bot">Telegram 机器人</a> |
+            <a href="https://t.me/SAFC_group">群组社区</a> |
+            <a href="https://github.com/framist/SAFC-bot"> GitHub</a> <br />
+        </p>
     </div>
 
     <div class="container mt-3">
@@ -77,8 +81,7 @@
         <div class="comments-info mb-3">
             <div class="row">
                 <div class="col align-self-start" id="comments-num">
-                    检索到 0 条评论 😢 
-                    <!-- 可能是后端服务器出故障了 🐎 速速联系<a href="https://t.me/SAFC_admin">管理员</a> -->
+                    检索到 0 条评论
                 </div>
             </div>
         </div>
@@ -87,8 +90,10 @@
     </div>
 
     <div class="text-center">
-        <i>this page's source code fork from <a href="https://gitee.com/wdwdwd123/RateMySupervisor">RateMySupervisor</a> </i> <br>
-        <i>made by <a href="https://github.com/framist/SAFC-bot">SAFC</a> </i>
+        <!-- <i>this page's source code fork from <a href="https://gitee.com/wdwdwd123/RateMySupervisor">RateMySupervisor</a>
+        </i> <br> -->
+        <i>web 端仍在开发中 🧪 增加导师、增加评价、嵌套评价等更多功能请使用 <a href="https://t.me/SAFC_bak_bot"> bot </a>！</i>  <br /> 
+        <!-- <a href="https://github.com/framist/SAFC-bot">SAFC</a> - 社群，保护，开放 -->
     </div>
 
     <script>
@@ -155,13 +160,17 @@
         var currentSp = '';
         var currentCm = new Array();
 
-        const API_URL = "http://safc.framecraft.top/api/query";
+        const API_URL = "https://safc.framist.top/api/query";
 
         $.get(API_URL, (d) => {
             schoolcates = d;
             setSelectOptions(schoolcate_sel, schoolcates);
             schoolcate_sel.trigger('change');
+        }).fail(() => {
+            commentsNumDiv.empty();
+            commentsNumDiv.append(`😢 可能后端服务器出故障了 🐎 速速拷打<a href="https://t.me/SAFC_admin">管理员</a>`);
         });
+            
 
         //Selector change 
 

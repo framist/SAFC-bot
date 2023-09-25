@@ -2,8 +2,8 @@
 //!
 
 use actix_cors::Cors;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use actix_web::{get, Responder};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -67,7 +67,7 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
 async fn main() -> io::Result<()> {
     dotenv().ok();
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    log::info!("Starting SAFT web server ... by Framecraft");
+    log::info!("Starting SAFT web server at PORT{} ... by Framecraft", PORT);
 
     // connect to SQLite DB
     let db = SAFCdb::new();
