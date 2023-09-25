@@ -1,0 +1,225 @@
+<html lang="en">
+<!-- SAFC web demo
+     fork from https://gitee.com/wdwdwd123/RateMySupervisor -->
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>SAFC | 查看导师评价</title>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="text-center">
+        <h1>🏛️</h1>
+        <h1>SAFC - Web</h1>
+        <b>实验版 web 界面 🧪 增加评价、嵌套评价等更多功能请使用 <a href="https://t.me/SAFC_bak_bot"> bot </a>！ </b><br />
+        <i>社群，安全，开源——不只是评价导师</i><br />
+        <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | -->
+        Web |
+        <a href="https://t.me/SAFC_bak_bot">Telegram 机器人</a> |
+        <a href="https://t.me/SAFC_group">群组社区</a> |
+        <a href="https://github.com/framist/SAFC-bot"> GitHub</a> <br />
+    </div>
+
+    <div class="container mt-3">
+
+        <div class="row">
+            <div class="col col-6">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="schoolcateSelector">校别</label>
+                    </div>
+                    <select class="custom-select" id="schoolcateSelector">
+                        <option selected>学校类别</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col col-6">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="universitySelector">学校</label>
+                    </div>
+                    <select class="custom-select" id="universitySelector">
+                        <option selected>所在学校</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col col-6">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="departmentSelector">院系</label>
+                    </div>
+                    <select class="custom-select" id="departmentSelector">
+                        <option selected>所在院系</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col col-6">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <label class="input-group-text" for="supervisorSelector">导师</label>
+                    </div>
+                    <select class="custom-select" id="supervisorSelector">
+                        <option selected>姓名</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="comments-info mb-3">
+            <div class="row">
+                <div class="col align-self-start" id="comments-num">
+                    检索到 0 条评论 😢 
+                    <!-- 可能是后端服务器出故障了 🐎 速速联系<a href="https://t.me/SAFC_admin">管理员</a> -->
+                </div>
+            </div>
+        </div>
+        <div class="descriptions">
+        </div>
+    </div>
+
+    <div class="text-center">
+        <i>this page's source code fork from <a href="https://gitee.com/wdwdwd123/RateMySupervisor">RateMySupervisor</a> </i> <br>
+        <i>made by <a href="https://github.com/framist/SAFC-bot">SAFC</a> </i>
+    </div>
+
+    <script>
+        function setSelectOptions(selector, options) {
+            selector.empty();
+            options.forEach(function (value, i) {
+                var option = new Option(value, i);
+                selector.append($(option));
+            });
+        }
+
+        /* {
+            "0": {
+                "object": "6f0980001ddd0b4d",
+                "description": "导师辨识特征：老年眼睛男，发量少<br><br>学术水平：纯属念书讲课型，近几年毫无科研产出，也没有有价值的课题研究项目<br><br>科研经费：无科研经费，感觉想自己混退休的样子，不为学生前途考虑<br><br>学生补助：无学生补助<br><br>师生关系：跟这种老师还不如自己学，没想到交大还有这种老师，真想想研究生院举报啊，这种老师真的误人子弟啊<br><br>学生前途：无前途可言，混时间，不一定能毕业，进这个课题组真的后悔阿，还不如当初找个双非学校的负责人的老师能学到东西！！",
+                "date": "2020-03",
+                "source_cate": "Urfire",
+                "comment_type": "Teacher",
+                "author_sign": null,
+                "id": "48139cef162977f9"
+            }
+        }*/
+        function show_comments() {
+            contentDiv.empty();
+            currentCm.forEach(function (value, i) {
+                var desc = value['description'];
+                // .replace(/<br>/g, '\n');
+                var card = $(`<div class="card mb-3">
+                <div class="card-header">
+                    <div class="row">
+                        <div class="col">
+                            <b> ${i + 1} | ${currentSp} - <code>${value['object']}</code> </b>
+                        </div>
+                        <div class="col" style="text-align: right;">
+                            <b>${value['comment_type']} | ${value['date']}</b>
+                        </div>
+                    </div>
+                </div>
+                    <div class="card-body">
+                        <p class="card-title">来自 ${value['source_cate']} 的评价 - <code>${value['id']}</code></p>
+                        <p class="card-text">${desc}</p>
+                    </div>
+                </div >`);
+                contentDiv.append($(card));
+            })
+        }
+
+        //Selectors
+        var schoolcate_sel = $('#schoolcateSelector');
+        var university_sel = $('#universitySelector');
+        var department_sel = $('#departmentSelector');
+        var supervisor_sel = $('#supervisorSelector');
+        //Buttons and Divs
+        var contentDiv = $('.descriptions');
+        var commentsNumDiv = $('#comments-num');
+        //Initialize selection conditions
+        var schoolcates = new Array();
+        var universities = new Array();
+        var departments = new Array();
+        var supervisors = new Array();
+        var currentCt = '';
+        var currentUn = '';
+        var currentDp = '';
+        var currentSp = '';
+        var currentCm = new Array();
+
+        const API_URL = "http://safc.framecraft.top/api/query";
+
+        $.get(API_URL, (d) => {
+            schoolcates = d;
+            setSelectOptions(schoolcate_sel, schoolcates);
+            schoolcate_sel.trigger('change');
+        });
+
+        //Selector change 
+
+        schoolcate_sel.change(() => {
+            currentCt = schoolcates[schoolcate_sel.val()];
+            $.get(API_URL, { school_cate: currentCt }, (d) => {
+                universities = d;
+                setSelectOptions(university_sel, universities);
+                university_sel.trigger('change');
+            });
+        });
+
+        university_sel.change(() => {
+            currentUn = universities[university_sel.val()];
+            $.get(API_URL,
+                { school_cate: currentCt, university: currentUn },
+                (d) => {
+                    console.log(d);
+                    departments = d;
+                    setSelectOptions(department_sel, departments);
+                    department_sel.trigger('change');
+                }
+            );
+        });
+
+        department_sel.change(() => {
+            currentDp = departments[department_sel.val()];
+            $.get(API_URL,
+                { school_cate: currentCt, university: currentUn, department: currentDp },
+                (d) => {
+                    console.log(d);
+                    supervisors = d;
+                    setSelectOptions(supervisor_sel, supervisors);
+                    supervisor_sel.trigger('change');
+                }
+            );
+        })
+        supervisor_sel.change(() => {
+            currentSp = supervisors[supervisor_sel.val()];
+            $.get(API_URL,
+                {
+                    school_cate: currentCt,
+                    university: currentUn,
+                    department: currentDp,
+                    supervisor: currentSp,
+                },
+                (d) => {
+                    console.log(d);
+                    currentCm = d;
+                    counts = currentCm.length;
+                    commentsNumDiv.empty();
+                    commentsNumDiv.append(`检索到 ${counts} 条评论`);
+                    show_comments();
+                }
+            );
+        })
+    </script>
+</body>
+
+
+</html>

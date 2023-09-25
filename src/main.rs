@@ -43,8 +43,8 @@ enum Command {
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
-    log::info!("Starting SAFT bot...\nby Framecraft");
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    log::info!("Starting SAFT bot ... by Framecraft");
 
     let bot = Bot::from_env();
 
