@@ -49,14 +49,22 @@ pub type Pool = r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>;
 type HandlerResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 // type HandlerResult<T, E = Box<dyn std::error::Error + Send + Sync>> > = std::result::Result<T, E>;
 
-/// 来源分类：admin, urfire, telegram...
-#[derive(Debug, EnumString, Display, PartialEq, Clone, Serialize, Deserialize)] // ?
+/// 数据来源分类
+#[derive(Debug, EnumString, Display, PartialEq, Clone, Serialize, Deserialize)]
 #[strum(serialize_all = "lowercase")]
 pub enum SourceCate {
+    /// 管理员手动添加
     Admin,
+    /// 来自 Urfire 数据
+    /// 数据来源：https://gitee.com/wdwdwd123/RateMySupervisor
+    /// 这个仓库可能 fork from https://github.com/pengp25/RateMySupervisor 且更新一点
     Urfire,
+    /// 来自 SAFC 的 telegram 平台数据
     Telegram,
+    /// 来自 SAFC 的 web 平台数据（暂无，平台未提供）
     Web,
+    /// 来自 pi-review.com 数据（暂无）
+    PiReview,
 }
 
 pub enum Obj {
@@ -151,6 +159,10 @@ impl SAFCdb {
             "db.sqlite".to_string()
         });
 
+        Self::new_with_path(db_path)
+    }
+
+    pub fn new_with_path(db_path: String) -> Self {
         let manager = SqliteConnectionManager::file(db_path);
         let pool = Pool::new(manager).unwrap();
         SAFCdb { pool }
@@ -330,6 +342,7 @@ impl SAFCdb {
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
+    /// 查找评价 - like 方式
     pub fn find_comment_like(&self, s: &String) -> HandlerResult<Vec<ObjComment>> {
         let conn = self.pool.clone().get()?;
 
@@ -397,22 +410,28 @@ impl SAFCdb {
     pub fn db_status(&self) -> HandlerResult<String> {
         let conn = self.pool.clone().get()?;
 
-        let c_count =
-            conn.query_row::<i32, _, _>("SELECT COUNT(*) FROM comments", [], |row| row.get(0))?;
-
         let o_count =
             conn.query_row::<i32, _, _>("SELECT COUNT(*) FROM objects", [], |row| row.get(0))?;
 
+        let c_count =
+            conn.query_row::<i32, _, _>("SELECT COUNT(*) FROM comments", [], |row| row.get(0))?;
+
         let start = chrono::Local::now() - chrono::Duration::days(31);
-        let m_count = conn.query_row::<i32, _, _>(
+        let m_new = conn.query_row::<i32, _, _>(
             "SELECT COUNT(*) FROM comments WHERE date > ?",
             [start.format("%Y-%m-%d").to_string()],
             |row| row.get(0),
         )?;
 
+        let o_new = conn.query_row::<i32, _, _>(
+            "SELECT COUNT(*) FROM objects WHERE date > ?",
+            [start.format("%Y-%m-%d").to_string()],
+            |row| row.get(0),
+        )?;
+
         Ok(format!(
-            "评价总数：{}, 客体总数：{}, 月新增评价数：{}",
-            c_count, o_count, m_count
+            "评价总数：{}, 实体客体总数：{}, 月新增客体数：{}, 月新增评价数：{}",
+            c_count, o_count, o_new, m_new
         ))
     }
 }

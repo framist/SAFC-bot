@@ -1,7 +1,7 @@
 <div align="center">
   <h1>🏛️</h1>
   <!-- <img width="150" heigth="150" src="./doc/asserts/icon.png"> -->
-  <h1>SAFC - bot</h1>
+  <h1>SAFC</h1>
   <b>🧪 in developing but already in servering!</b><br/>
   <i>社群，安全，开源——不只是评价导师</i><br/>
   <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | --> 
@@ -11,6 +11,7 @@
 </div>
 
 # 大学生反诈中心 SAFC
+
 
 <details>
 <summary>Demo</summary>
@@ -34,14 +35,14 @@
 * Telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台 *本仓库未来可能会因为各种原因失踪，请加入此群组以防迷路*
 * Telegram 机器人 ~~[@SAFC_bot](https://t.me/SAFC_bot)~~ [@SAFC_bak_bot](https://t.me/SAFC_bak_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
 
-本平台的长期目标：
+本平台的长期目标：元平台、分布式
 
 * _出发_：共享，开放，自由的精神；我为人人，人人为我的理念。
 * _开源_：SAFC 的功能与基础设施将保证**永远免费，数据、代码开源**。源代码也必须是可读的，这样用户就可以理解系统真正在做什么，并更容易地扩展它。
-* _技术_：密码朋克，尽可能地做好隐私保护、数据与人身安全；数据共享代码开源，相互监督共进；未来预计实现完全的去中心化，每个人都能建立起新的节点。
+* _技术_：密码朋克，尽可能地做好隐私保护、数据与人身安全；数据共享代码开源，相互监督共进；**未来预计实现完全的去中心化，每个人都能建立起新的节点**。
 * _定位_：综合大学生所需要的功能，不光包括最基本的导师评价和查询功能，还能对学校、专业、学院、课程、学生、已有的评价进行评价；另外提供一个交流平台。
+* _元平台_：**引用综合其他相似平台**。[详细](./script/crawlers/README.md)
 * _价值观_：不审核把控评价，因为每个评价必有片面主观的地方。只有评价，没有评分，每个客体都不能由单独的分数来决定。
-* _❔噬食_：收集其他相似平台的数据，吸纳归一。
 
 ## 隐私
 
@@ -52,7 +53,7 @@
 
 ## 发展
 
-以功能上线时间为先。*永远的 beta 版*
+目前仍处开发初期阶段，以功能上线时间为先。*永远的 beta 版*
 
 除了用户主动提交信息，我们也会尽可能地搜集、爬取可靠信息，让数据库更加全面。
 
@@ -61,10 +62,8 @@
 ## 参考
 
 <details>
-<summary>初始数据来源：</summary>
-https://github.com/pengp25/RateMySupervisor
-
-https://gitee.com/wdwdwd123/RateMySupervisor 难以找到哪个是原始 RateMySupervisor 仓库了，但这个好像数据更新一点
+<summary>数据来源：</summary>
+见 `safc::db::SourceCate`
 </details>
 
 <details>
@@ -73,49 +72,23 @@ https://gitee.com/wdwdwd123/RateMySupervisor 难以找到哪个是原始 RateMyS
 前端页面魔改一下 RateMySupervisor 的，主要做后端和 API
 </details>
 
-
+<details>
+<summary>目前还活着的相似站点：</summary>
+- [PI Review - 研究生导师点评网站](https://pi-review.com/)
+  - 功能齐全，也支持嵌套评价，使用体验好，UI 优良
+  - 国际化，非营利；完全是自己的数据
+  - 采用校园邮箱或邀请认证学生
+  - 主要是 utsc 的用户比较多，但是评价、用户少
+- [导师推荐人](https://mysupervisor.org/) 、https://ratemysupervisor.org/
+  - 功能残缺
+  - 付费站点
+- [GRADPI](https://www.gradpi.com/)
+  - 英文站点
+</details>
 
 # 开发
 
-1. Install [Rust].
-2. Setup your bot with [@botfather](https://t.me/botfather).
-3. Clone this repository.
-4. Set the environment variables:
-   ```sh
-   export TELOXIDE_TOKEN=<BOT TOKEN e.g. 123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
-   export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
-   ```
-5. Run `cargo run` from the repository directory.
-6. Send a message to your bot with `/start` command.
-7. Enjoy!
-
-## TODOs
-
-- VIS
-  - [ ] logo
-- db
-  - [ ] 模块重构
-  - [ ] 分离与定时备份、发布
-- tg bot 功能
-  - [x] `/start` 重构 —— 作为功能指引
-  - [x] 嵌套评价
-    - [ ] 更方便优雅地评价（翻页、回调）
-  - [ ] 模糊/快速 搜索 - 转为内联按钮的形式
-  - [ ] 词云？关键字提取？
-  - [x] 数据汇报
-  - [ ] 抗攻击 - 按 uid 限制次数
-  - [ ] 数据定时上传备份到 @SAFC_group
-- web
-  - [ ] 待定 actix-web? axum?
-- 部署
-  - [ ] env 转而使用配置文件的形式 & docker
-- 数据
-  - [ ] wiki 形式的客体基本信息
-- 文档
-  - [ ] 开发文档
-  - [ ] 使用文档，包括导师评价规范、隐私目的的文字指导、社区公约等
-- **带计划！**
-  - [ ] 基于 Telegram 通讯的分布式数据库与分布式 bot
+参见 [develop.md](./doc/develop.md)
 
 ---
 

@@ -2,6 +2,7 @@
 
 db.sqlite
 comments_data.json
+tmp/
 
 # rust
 /target/

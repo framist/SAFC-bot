@@ -30,7 +30,15 @@
         </p>
     </div>
 
+    
     <div class="container mt-3">
+        <div class="comments-info mb-3">
+            <div class="row">
+                <div class="col align-self-start" id="db-status">
+                    连接数据库中 ……
+                </div>
+            </div>
+        </div>
 
         <div class="row">
             <div class="col col-6">
@@ -149,6 +157,7 @@
         //Buttons and Divs
         var contentDiv = $('.descriptions');
         var commentsNumDiv = $('#comments-num');
+        var statusDiv = $('#db-status');
         //Initialize selection conditions
         var schoolcates = new Array();
         var universities = new Array();
@@ -162,15 +171,19 @@
 
         const API_URL = "https://safc.framist.top/api/query";
 
+        $.get("https://safc.framist.top/api", (d) => {
+            statusDiv.empty();
+            statusDiv.append(`${d}`);
+        }).fail(() => {
+            statusDiv.empty();
+            statusDiv.append(`😢 可能后端服务器出故障了 🐎 速速拷打<a href="https://t.me/SAFC_admin">管理员</a>`);
+        });
+
         $.get(API_URL, (d) => {
             schoolcates = d;
             setSelectOptions(schoolcate_sel, schoolcates);
             schoolcate_sel.trigger('change');
-        }).fail(() => {
-            commentsNumDiv.empty();
-            commentsNumDiv.append(`😢 可能后端服务器出故障了 🐎 速速拷打<a href="https://t.me/SAFC_admin">管理员</a>`);
-        });
-            
+        });            
 
         //Selector change 
 
