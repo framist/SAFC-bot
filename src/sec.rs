@@ -6,7 +6,6 @@
 use hex;
 use sha2::{Digest, Sha256};
 
-
 /// 注意：只能在新建对象的时候计算此 id，因为使用的字段未来可能可变
 pub fn hash_object_id(university: &String, department: &String, supervisor: &String) -> String {
     let s = format!("{}{}{}", university, department, supervisor);

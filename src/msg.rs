@@ -229,7 +229,7 @@ fn format_nested_comments(comments: Vec<String>) -> String {
                     .join("\n")
             })
             .collect::<Vec<_>>()
-            .join(" \\| \\-\n")
+            .join(escape("---\n").as_str())
     } else {
         // " \\| _沙发虚位以待_".to_owned()
         escape(" ◻\n")
@@ -239,24 +239,6 @@ fn format_nested_comments(comments: Vec<String>) -> String {
 #[test]
 fn my_test() {
     println!("{}", serde_json::to_string(&ObjectOp::Read).unwrap());
-    // println!(
-    //     "{}",
-    //     serde_json::to_string(&ObjectOp::Return(State::Start)).unwrap()
-    // );
-    // println!(
-    //     "{}",
-    //     serde_json::to_string(&ObjectOp::Return(State::University {
-    //         school_cate: "101".to_string()
-    //     }))
-    //     .unwrap()
-    // );
-    // println!(
-    //     "{:#?}",
-    //     InlineKeyboardButton::callback(
-    //         "🏁 结束",
-    //         ObjectOp::Return(State::University {
-    //             school_cate: "101".to_string()
-    //         })
-    //     )
-    // );
+    let msg = get_comment_msg(&"2ac4ae281b9a2528".to_string(), "谢洪涛").unwrap();
+    println!("{}", msg);
 }

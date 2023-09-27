@@ -575,10 +575,32 @@ async fn read_or_comment_cb(
             ObjectOp::Read => {
                 let text = get_comment_msg(&object_id, &supervisor)?;
                 if let Some(Message { id, chat, .. }) = q.message {
-                    bot.edit_message_text(chat.id, id, text)
-                        .reply_markup(build_op_keyboard())
-                        .parse_mode(MarkdownV2)
-                        .await?;
+                    if text.len() > 4096 {
+                        // TODO 临时的解决方法
+                        let mut start = 0;
+                        while start < text.len() {
+                            let end = start + 4096;
+                            let chunk = &text[start..end];
+
+                            let reply_markup = if end >= text.len() {
+                                build_op_keyboard()
+                            } else {
+                                InlineKeyboardMarkup::default()
+                            };
+
+                            bot.send_message(chat.id, chunk)
+                                .reply_markup(reply_markup)
+                                .parse_mode(MarkdownV2)
+                                .await?;
+
+                            start = end;
+                        }
+                    } else {
+                        bot.edit_message_text(chat.id, id, text)
+                            .reply_markup(build_op_keyboard())
+                            .parse_mode(MarkdownV2)
+                            .await?;
+                    }
                 }
                 // else if let Some(id) = q.inline_message_id {
                 //     bot.edit_message_text_inline(id, text).await?; // 使用户自己发言的情况（inline 模式）todo

@@ -8,19 +8,33 @@
 //!
 //! ```
 //! 【客体表】objects
-//! _学校类别 < 学校 < 学院 < 导师 - _日期 - _信息 - object (key)
+//! _学校类别 < _学校 < _学院 < _导师 - _日期 - _信息 - object (key)
 //!           | 包含学院本身 self 下同
-//!
-//! object：
-//! sha256( 学校 | 学院 | 导师 )[:8]
+//! - school_cate TEXT NOT NULL,
+//! - university TEXT NOT NULL,
+//! - department TEXT NOT NULL,
+//! - supervisor TEXT NOT NULL,
+//! - date TEXT NOT NULL,
+//! - info TEXT,
+//! - object TEXT NOT NULL,
+//! - PRIMARY KEY (object)
+//! object：仅在第一次添加客体时计算，所以其他字段也可是可变的
+//! sha256( 学校 | 学院 | 导师 )[:8byte]
 //!
 //! 【评价表】comments
 //! object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评价 id (key)
+//! - object TEXT NOT NULL,
+//! - description TEXT NOT NULL,
+//! - date TEXT NOT NULL,
+//! - source_cate TEXT NOT NULL,
+//! - type TEXT NOT NULL,
+//! - author_sign TEXT,
+//! - id TEXT NOT NULL,
 //!
 //! `_` 表示后续可变
 //! 来源分类：admin, urfire, telegram...
 //! 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like） ...
-//! 评价 id = sha256( object | 评价 | 日期 )[:8] 注意，这个也包含去重的性质
+//! 评价 id = sha256( object | 评价 | 日期 )[:8byte] 注意，这个也包含去重的性质
 //! 发布人签名 可为空 = sha256( 评价 id | sha256(salt + 发布人一次性密语).hex )
 //! salt: SAFC_salt
 //! ```
@@ -416,7 +430,7 @@ impl SAFCdb {
         let c_count =
             conn.query_row::<i32, _, _>("SELECT COUNT(*) FROM comments", [], |row| row.get(0))?;
 
-        let start = chrono::Local::now() - chrono::Duration::days(31);
+        let start = chrono::Local::now() - chrono::Duration::days(365);
         let m_new = conn.query_row::<i32, _, _>(
             "SELECT COUNT(*) FROM comments WHERE date > ?",
             [start.format("%Y-%m-%d").to_string()],
@@ -430,7 +444,7 @@ impl SAFCdb {
         )?;
 
         Ok(format!(
-            "评价总数：{}, 实体客体总数：{}, 月新增客体数：{}, 月新增评价数：{}",
+            "评价总数：{}, 实体客体总数：{}, 年新增客体数：{}, 年增评价数：{}",
             c_count, o_count, o_new, m_new
         ))
     }

@@ -100,7 +100,7 @@
     <div class="text-center">
         <!-- <i>this page's source code fork from <a href="https://gitee.com/wdwdwd123/RateMySupervisor">RateMySupervisor</a>
         </i> <br> -->
-        <i>web 端仍在开发中 🧪 增加导师、增加评价、嵌套评价等更多功能请使用 <a href="https://t.me/SAFC_bak_bot"> bot </a>！</i>  <br /> 
+        <i>web 端仍在开发中 🧪 现只提供基本的查看功能<br /> 增加导师、增加评价、查看与增加嵌套评价等更多功能请使用 <a href="https://t.me/SAFC_bak_bot"> bot </a>！</i>  <br /> 
         <!-- <a href="https://github.com/framist/SAFC-bot">SAFC</a> - 社群，保护，开放 -->
     </div>
 
@@ -127,8 +127,7 @@
         function show_comments() {
             contentDiv.empty();
             currentCm.forEach(function (value, i) {
-                var desc = value['description'];
-                // .replace(/<br>/g, '\n');
+                var desc = value['description'].replace(/\n/g, "<br>");
                 var card = $(`<div class="card mb-3">
                 <div class="card-header">
                     <div class="row">
@@ -143,6 +142,9 @@
                     <div class="card-body">
                         <p class="card-title">来自 ${value['source_cate']} 的评价 - <code>${value['id']}</code></p>
                         <p class="card-text">${desc}</p>
+                        <div class="nest-descriptions">
+                            <!-- todo -->
+                        </div>
                     </div>
                 </div >`);
                 contentDiv.append($(card));
@@ -201,7 +203,6 @@
             $.get(API_URL,
                 { school_cate: currentCt, university: currentUn },
                 (d) => {
-                    console.log(d);
                     departments = d;
                     setSelectOptions(department_sel, departments);
                     department_sel.trigger('change');
@@ -214,7 +215,6 @@
             $.get(API_URL,
                 { school_cate: currentCt, university: currentUn, department: currentDp },
                 (d) => {
-                    console.log(d);
                     supervisors = d;
                     setSelectOptions(supervisor_sel, supervisors);
                     supervisor_sel.trigger('change');
@@ -231,7 +231,6 @@
                     supervisor: currentSp,
                 },
                 (d) => {
-                    console.log(d);
                     currentCm = d;
                     counts = currentCm.length;
                     commentsNumDiv.empty();

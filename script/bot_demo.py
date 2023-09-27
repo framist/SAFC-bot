@@ -357,6 +357,8 @@ async def publish_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                            comment_id
                        )
                        )
+        conn.commit()
+        
 
     await update.message.reply_text(
         f"您的 OTP 已销毁，生成签名 {sign}\n"

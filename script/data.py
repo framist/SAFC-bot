@@ -3,7 +3,7 @@ import json
 import hashlib
 
 """
-原始数据的处理、建立数据库脚本文件。请保留以供未来参考
+已经弃用的 原始数据的处理、建立数据库脚本文件。保留以供未来参考
 
 使用 sqlite - 关系型数据库，弱类型
 
@@ -34,7 +34,7 @@ object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评
 
 来源分类：admin, urfire, telegram...
 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like） ...
-评价 id = sha256( object | 评价 | 日期 )[:8] 注意，这个也包含去重的性质
+评价 id = sha256( object | 评价 | 日期 )[:8byte] 注意，这个也包含去重的性质
 发布人签名 可为空 = sha256( 评价 id | sha256(salt + 发布人一次性密语).hex )
 salt: SAFC_salt
 
