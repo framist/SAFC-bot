@@ -3,6 +3,7 @@
 db.sqlite
 comments_data.json
 tmp/
+*.zip
 
 # rust
 /target/
