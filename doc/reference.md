@@ -1,6 +1,6 @@
 # 参考与调研
 
-- [本平台使用的其他数据来源](./script/crawlers/README.md)
+- [本平台使用的其他数据来源](../script/crawlers/README.md)
 - 目前还活着的相似站点：
   - [PI Review - 研究生导师点评网站](https://pi-review.com/)
     - 功能齐全，也支持嵌套评价，使用体验好，UI 优良

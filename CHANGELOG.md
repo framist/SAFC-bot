@@ -14,6 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 2023-09-13 增加嵌套评价功能
 2023-09-18 增加了一个用于模糊搜索的命令
 2023-09-20 开始功能页更新，增加了简单的统计，修正了 /comment 的 bug
-2023-09-21 开发重构：使用连接池来使用数据库
+2023-09-21 数据库初步重构
 2023-09-25 增加初步的 web 前端与后端
 2023-09-27 元平台：增加 pi-review.com 源

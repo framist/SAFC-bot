@@ -30,6 +30,8 @@
 
 ## TODOs
 
+tg bot 的功能比较受限，是否应该大力开发 web 端？
+
 - VIS
   - [ ] logo
 - db
@@ -45,7 +47,11 @@
   - [ ] 抗攻击 - 按 uid 限制次数
   - [ ] 数据定时上传备份到 @SAFC_group
 - web
-  - [ ] 待定 actix-web? axum?
+  - [x] 静态网页 demo
+  - [ ] 完整功能
+- 更多平台
+  - [ ] 浏览器插件 方便地加入导师相关评价
+  - [ ] Discord、matrix 等更多社群
 - 部署
   - [ ] env 转而使用配置文件的形式 & docker
 - 数据

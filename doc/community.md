@@ -40,3 +40,6 @@
 ### 致谢
 
 本文~~抄~~参考自：https://pi-review.com/review-form
+
+## 隐私政策
+
