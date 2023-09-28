@@ -77,7 +77,7 @@ pub enum SourceCate {
     Telegram,
     /// 来自 SAFC 的 web 平台数据（暂无，平台未提供）
     Web,
-    /// 来自 pi-review.com 数据（暂无）
+    /// 来自 pi-review.com 数据 截止至 2023-09-26
     PiReview,
 }
 

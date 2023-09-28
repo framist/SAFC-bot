@@ -21,7 +21,7 @@
         <h1>SAFC - Web</h1>
         <p>
             <b>大学生反诈中心 web 端</b><br />
-            <i>社群，安全，开源——不只是评价导师</i><br />
+            <i>元平台、分布式——不只是评价导师</i><br />
             <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | -->
             Web（本站） |
             <a href="https://t.me/SAFC_bak_bot">Telegram 机器人</a> |
@@ -147,6 +147,17 @@
                         </div>
                     </div>
                 </div >`);
+                if (currentUn == '西安电子科技大学') {
+                    // 你懂的
+                    card = $(`<div class="card mb-3">
+                        <div class="card-header">
+                            <div class="row">
+                                <div class="col">
+                                    <b> 不予显示 </b>
+                                </div>
+                            </div>
+                        </div>`);
+                }
                 contentDiv.append($(card));
             })
         }

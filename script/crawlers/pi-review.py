@@ -1,6 +1,6 @@
 # 收集 https://pi-review.com/ 的数据
 # 此站没有 robots.txt
-# 上次数据获取日期 UPDATAED
+# 上次数据获取日期 `UPDATAED`
 # autocorrect: false
 
 import pathlib
@@ -15,6 +15,7 @@ import hashlib
 
 DATA_PATH = "./db.sqlite"
 UPDATED = '2023-09-26'
+# 下次获取的时候增量爬取就行
 
 
 def _filter_department(department):
