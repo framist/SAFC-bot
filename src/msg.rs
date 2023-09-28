@@ -2,6 +2,7 @@
 // use teloxide::utils::markdown::escape;
 use teloxide::types::InlineKeyboardButton;
 use teloxide::types::InlineKeyboardMarkup;
+use teloxide::utils::markdown::escape;
 
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +15,7 @@ lazy_static! {
 }
 
 pub const GITHUB_URL: &str = "https://github.com/framist/SAFC-bot";
+pub const WEB_URL: &str = "https://framist.github.io/safc";
 
 const BOT_INFO: &str = r"*大学生反诈中心*
 
@@ -60,6 +62,7 @@ impl ToString for TgResponse {
 pub enum State {
     #[default]
     Start,
+    /// 开始功能选单回调状态
     StartCb,
     SchoolCate,
     University {
@@ -85,6 +88,14 @@ pub enum State {
         object_id: String, // 待重构为 Obj
         comment: String,
         comment_type: CommentType,
+    },
+    /// 分页显示回调状态
+    PagingCb {
+        pages: Vec<String>,
+        /// 上一个状态
+        prev_state: Box<State>,
+        prev_msg: String,
+        prev_op_keyboard: InlineKeyboardMarkup,
     },
 }
 
@@ -112,18 +123,36 @@ pub enum ObjectOp {
     ReturnS,
 }
 
+/// 分页操作的回调
+#[derive(Serialize, Deserialize, Debug)]
+pub enum PagingOp {
+    /// 页码
+    Page(usize),
+    // /// 上一页
+    // Prev,
+    // /// 下一页
+    // Next,
+    /// 返回
+    Back,
+}
+
+impl From<StartOp> for String {
+    fn from(val: StartOp) -> Self {
+        serde_json::to_string(&val).unwrap()
+    }
+}
+
 impl From<ObjectOp> for String {
     fn from(val: ObjectOp) -> Self {
         serde_json::to_string(&val).unwrap()
     }
 }
 
-// impl TryFrom<String> for ObjectOp {
-//     type Error = serde_json::Error;
-//     fn try_from(value: String) -> Result<Self, Self::Error> {
-//         serde_json::from_str(&value)
-//     }
-// }
+impl From<PagingOp> for String {
+    fn from(val: PagingOp) -> Self {
+        serde_json::to_string(&val).unwrap()
+    }
+}
 
 impl From<String> for ObjectOp {
     fn from(value: String) -> Self {
@@ -134,66 +163,53 @@ impl From<String> for ObjectOp {
 pub fn build_op_keyboard() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new([
         vec![
-            InlineKeyboardButton::callback(
-                "👀 查看评价",
-                serde_json::to_string(&ObjectOp::Read).unwrap(),
-            ),
-            InlineKeyboardButton::callback(
-                "💬 增加评价",
-                serde_json::to_string(&ObjectOp::Commet).unwrap(),
-            ),
+            InlineKeyboardButton::callback("👀 查看评价", ObjectOp::Read),
+            InlineKeyboardButton::callback("💬 增加评价", ObjectOp::Commet),
         ],
         vec![
-            InlineKeyboardButton::callback(
-                "🤗 详细信息",
-                serde_json::to_string(&ObjectOp::Info).unwrap(),
-            ),
-            InlineKeyboardButton::callback(
-                "🏁 结束",
-                serde_json::to_string(&ObjectOp::End).unwrap(),
-            ),
+            InlineKeyboardButton::callback("🤗 详细信息", ObjectOp::Info),
+            InlineKeyboardButton::callback("🏁 结束会话", ObjectOp::End),
         ],
         vec![
-            InlineKeyboardButton::callback(
-                "↩️ 🏫",
-                serde_json::to_string(&ObjectOp::ReturnU).unwrap(),
-            ),
-            InlineKeyboardButton::callback(
-                "↩️ 🏢",
-                serde_json::to_string(&ObjectOp::ReturnD).unwrap(),
-            ),
-            InlineKeyboardButton::callback(
-                "↩️ 👔",
-                serde_json::to_string(&ObjectOp::ReturnS).unwrap(),
-            ),
+            InlineKeyboardButton::callback("↩️ 🏫", ObjectOp::ReturnU),
+            InlineKeyboardButton::callback("↩️ 🏢", ObjectOp::ReturnD),
+            InlineKeyboardButton::callback("↩️ 👔", ObjectOp::ReturnS),
         ],
     ])
 }
 
-use teloxide::utils::markdown::escape;
-/// 生成评价 markdown
-pub fn get_comment_msg(
+/// `index` 从 0 开始的页码
+/// `total` 为总共的页数
+pub fn build_paging_keyboard(total: usize, index: usize) -> InlineKeyboardMarkup {
+    const COLS: usize = 3; // COLS * 2 + 1 == 一行显示最多的页码按钮数
+    let start = index
+        .saturating_sub(COLS)
+        .min(total.saturating_sub(2 * COLS + 1));
+    let buttons_1 = (start..(start + 2 * COLS + 1).min(total))
+        .map(|x| InlineKeyboardButton::callback(format!("{}/{}", x + 1, total), PagingOp::Page(x)))
+        .collect();
+
+    let mut buttons_2 = vec![InlineKeyboardButton::callback("↩️ 返回", PagingOp::Back)];
+    if index > 0 {
+        buttons_2.push(InlineKeyboardButton::callback(
+            "⬅️ 上页",
+            PagingOp::Page(index - 1),
+        ));
+    }
+    if index < total - 1 {
+        buttons_2.push(InlineKeyboardButton::callback(
+            "➡️ 下页",
+            PagingOp::Page(index + 1),
+        ));
+    }
+    InlineKeyboardMarkup::new([buttons_1, buttons_2])
+}
+
+/// 生成分页的评价 markdown
+pub fn get_comment_pages(
     object_id: &String,
-    supervisor: &str,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    let coms = comments_msg_helper(object_id)?;
-    let text = if !coms.is_empty() {
-        format!(
-            "{}\n_使用 /comment \\<id\\> 给评价写评价。_ ",
-            coms.join("\n\n")
-        )
-    } else {
-        "🈳 _此客体暂无评价！_".to_string()
-    };
-    let text = format!(
-        "*👔 {} id: `{}` 的评价：*\n{}\n\
-        \n\
-        *请选择操作：*",
-        escape(supervisor),
-        &object_id,
-        text
-    );
-    Ok(text)
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+    comments_msg_helper(object_id)
 }
 
 fn comments_msg_helper(
@@ -239,6 +255,6 @@ fn format_nested_comments(comments: Vec<String>) -> String {
 #[test]
 fn my_test() {
     println!("{}", serde_json::to_string(&ObjectOp::Read).unwrap());
-    let msg = get_comment_msg(&"2ac4ae281b9a2528".to_string(), "谢洪涛").unwrap();
-    println!("{}", msg);
+    let msg = get_comment_pages(&"2ac4ae281b9a2528".to_string()).unwrap();
+    println!("{:#?}", msg);
 }

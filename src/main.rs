@@ -4,13 +4,13 @@ use safc::sec::*;
 mod msg;
 use msg::*;
 
-use teloxide::types::ParseMode::MarkdownV2;
 use teloxide::utils::markdown::escape;
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
     prelude::*,
     types::{
         InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, KeyboardMarkup, KeyboardRemove,
+        ParseMode::MarkdownV2,
     },
     utils::command::BotCommands,
 };
@@ -44,7 +44,7 @@ enum Command {
 #[tokio::main]
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    log::info!("Starting SAFT bot ... by Framecraft");
+    log::info!("Starting SAFT bot for telegram ... by Framecraft");
 
     let bot = Bot::from_env();
 
@@ -120,6 +120,15 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
     let callback_query_handler = Update::filter_callback_query()
         .branch(case![State::StartCb].endpoint(start_cb))
         .branch(case![State::Read { obj_teacher }].endpoint(read_or_comment_cb))
+        .branch(
+            case![State::PagingCb {
+                pages,
+                prev_state,
+                prev_msg,
+                prev_op_keyboard
+            }]
+            .endpoint(paging_cb),
+        )
         .branch(dptree::endpoint(invalid_callback_query));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
@@ -296,45 +305,23 @@ async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
     Ok(())
 }
 
-/// old 开始对话，并向用户询问他们的 school_cate。
-async fn _start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
-    // let data = find_school_cate()?;
-    let data = SAFC_DB.find_school_cate()?;
-    let keyboard = _convert_to_n_columns_keyboard(data, 3);
-    bot.send_message(msg.chat.id, TgResponse::Hello.to_string())
-        .parse_mode(MarkdownV2)
-        .reply_markup(KeyboardMarkup::new(keyboard))
-        .await?;
-    dialogue.update(State::SchoolCate).await?; // 更新会话状态
-    Ok(())
-}
-
 /// 开始
 async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, TgResponse::Hello.to_string())
         .parse_mode(MarkdownV2)
         .reply_markup(InlineKeyboardMarkup::new([
             vec![InlineKeyboardButton::callback(
-                "🌳 开始查询&评价！",
-                serde_json::to_string(&StartOp::Tree).unwrap(),
+                "🌳 开始查询 & 评价！",
+                StartOp::Tree,
             )],
             vec![
-                InlineKeyboardButton::callback(
-                    "👔 快搜教师",
-                    serde_json::to_string(&StartOp::FindSupervisor).unwrap(),
-                ),
-                InlineKeyboardButton::callback(
-                    "💬 快搜评论",
-                    serde_json::to_string(&StartOp::FindComment).unwrap(),
-                ),
+                InlineKeyboardButton::callback("👔 快搜教师", StartOp::FindSupervisor),
+                InlineKeyboardButton::callback("💬 快搜评论", StartOp::FindComment),
             ],
             vec![
-                InlineKeyboardButton::callback(
-                    "📊",
-                    serde_json::to_string(&StartOp::Status).unwrap(),
-                ),
+                InlineKeyboardButton::callback("📊", StartOp::Status),
                 InlineKeyboardButton::url("🏛️", Url::parse("https://t.me/SAFC_group").unwrap()),
-                // InlineKeyboardButton::url("🌐", Url::parse("https://").unwrap()),
+                InlineKeyboardButton::url("🌐", Url::parse(WEB_URL).unwrap()),
                 InlineKeyboardButton::url("🐱", Url::parse(GITHUB_URL).unwrap()),
             ],
         ]))
@@ -573,41 +560,49 @@ async fn read_or_comment_cb(
     if let Some(op) = &q.data {
         match serde_json::from_str(op)? {
             ObjectOp::Read => {
-                let text = get_comment_msg(&object_id, &supervisor)?;
-                if let Some(Message { id, chat, .. }) = q.message {
-                    if text.len() > 4096 {
-                        // TODO 临时的解决方法
-                        let mut start = 0;
-                        while start < text.len() {
-                            let end = start + 4096;
-                            let chunk = &text[start..end];
-
-                            let reply_markup = if end >= text.len() {
-                                build_op_keyboard()
-                            } else {
-                                InlineKeyboardMarkup::default()
-                            };
-
-                            bot.send_message(chat.id, chunk)
-                                .reply_markup(reply_markup)
-                                .parse_mode(MarkdownV2)
-                                .await?;
-
-                            start = end;
-                        }
-                    } else {
-                        bot.edit_message_text(chat.id, id, text)
+                let pages: Vec<String> = get_comment_pages(&object_id)?
+                    .iter()
+                    .enumerate()
+                    .map(|(i, x)| {
+                        format!(
+                            "*👔 {} `{}` 的评价 第 {} 页：*\n\
+                            {}\n\
+                            _使用 /comment \\<id\\> 给评价写评价。_ ",
+                            escape(&supervisor),
+                            &object_id,
+                            i + 1,
+                            x
+                        )
+                    })
+                    .collect();
+                if pages.is_empty() {
+                    if let Some(Message { id, chat, .. }) = q.message {
+                        bot.edit_message_text(chat.id, id, "🈳 _此客体暂无评价！_".to_string())
                             .reply_markup(build_op_keyboard())
                             .parse_mode(MarkdownV2)
                             .await?;
                     }
+                    // dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
+                } else {
+                    let text = &pages[0];
+                    if let Some(Message { id, chat, .. }) = q.message {
+                        bot.edit_message_text(chat.id, id, text)
+                            .reply_markup(build_paging_keyboard(pages.len(), 0))
+                            .parse_mode(MarkdownV2)
+                            .await?;
+                    }
+                    dialogue
+                        .update(State::PagingCb {
+                            pages,
+                            prev_state: Box::new(State::Read { obj_teacher }),
+                            prev_msg: format!(
+                                "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
+                                请选择操作："
+                            ),
+                            prev_op_keyboard: build_op_keyboard(),
+                        })
+                        .await?;
                 }
-                // else if let Some(id) = q.inline_message_id {
-                //     bot.edit_message_text_inline(id, text).await?; // 使用户自己发言的情况（inline 模式）todo
-                // } else {
-                //     log::error!("unhanded q.message");
-                // }
-                dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
             }
             ObjectOp::Add => {
                 // 增加评价客体
@@ -622,7 +617,7 @@ async fn read_or_comment_cb(
                         .reply_markup(build_op_keyboard())
                         .await?;
                 } // else ... todo
-                dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
+                  // dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
             }
             ObjectOp::Commet => {
                 let text = format!(
@@ -652,7 +647,7 @@ async fn read_or_comment_cb(
                 let text = format!(
                     "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
                     该客体的初次添加日期：{}\n\
-                    wiki：{:?} （此功能有待开发）",
+                    {:?} \n（此功能有待开发）",
                     date, info
                 );
                 if let Some(Message { id, chat, .. }) = q.message {
@@ -660,7 +655,7 @@ async fn read_or_comment_cb(
                         .reply_markup(build_op_keyboard())
                         .await?;
                 } // else ... todo
-                dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
+                  // dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
             }
             ObjectOp::ReturnU => {
                 choose_university_msg(&school_cate, &bot, &q.message.unwrap()).await?;
@@ -695,6 +690,43 @@ async fn read_or_comment_cb(
         }
     }
 
+    Ok(())
+}
+
+/// 分页会话回调处理函数
+async fn paging_cb(
+    bot: Bot,
+    dialogue: MyDialogue,
+    (pages, prev_state, prev_msg, prev_op_keyboard): (
+        Vec<String>,
+        Box<State>,
+        String,
+        InlineKeyboardMarkup,
+    ),
+    q: CallbackQuery,
+) -> HandlerResult {
+    bot.answer_callback_query(q.id).await?;
+    if let Some(op) = &q.data {
+        match serde_json::from_str(op)? {
+            PagingOp::Page(index) => {
+                let text = &pages[index];
+                if let Some(Message { id, chat, .. }) = q.message {
+                    bot.edit_message_text(chat.id, id, text)
+                        .parse_mode(MarkdownV2)
+                        .reply_markup(build_paging_keyboard(pages.len(), index))
+                        .await?;
+                }
+            }
+            PagingOp::Back => {
+                if let Some(Message { id, chat, .. }) = q.message {
+                    bot.edit_message_text(chat.id, id, prev_msg)
+                        .reply_markup(prev_op_keyboard)
+                        .await?;
+                }
+                dialogue.update(*prev_state).await?;
+            }
+        }
+    }
     Ok(())
 }
 
