@@ -16,7 +16,7 @@
 
 <details>
 <summary>Demo</summary>
-<img src="./assets/bot_demo.webp">
+<img src="./assets/bot_demo.png">
 </details>
 
 
