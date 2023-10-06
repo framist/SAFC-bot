@@ -180,6 +180,7 @@ pub fn build_op_keyboard() -> InlineKeyboardMarkup {
 
 /// `index` 从 0 开始的页码
 /// `total` 为总共的页数
+/// TODO 去除本页的按钮 以解决 `MessageNotModified`
 pub fn build_paging_keyboard(total: usize, index: usize) -> InlineKeyboardMarkup {
     const COLS: usize = 3; // COLS * 2 + 1 == 一行显示最多的页码按钮数
     let start = index
