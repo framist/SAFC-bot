@@ -1,25 +1,23 @@
-// use teloxide::prelude::*;
-// use teloxide::utils::markdown::escape;
+use serde::{Deserialize, Serialize};
 use teloxide::types::InlineKeyboardButton;
 use teloxide::types::InlineKeyboardMarkup;
-use teloxide::utils::markdown::escape;
-
-use serde::{Deserialize, Serialize};
+pub use teloxide::utils::markdown::escape;
+use url::Url;
 
 use safc::db::*;
 
 // 有没有更优雅的方法？
 use lazy_static::lazy_static;
 lazy_static! {
+    /// bot 的全局唯一数据库池
     pub static ref SAFC_DB: SAFCdb = SAFCdb::new();
 }
 
-pub const GITHUB_URL: &str = "https://github.com/framist/SAFC-bot";
-pub const WEB_URL: &str = "https://framist.github.io/safc";
-
+const GITHUB_URL: &str = "https://github.com/framist/SAFC-bot";
+const WEB_URL: &str = "https://framist.github.io/safc";
 const BOT_INFO: &str = r"*大学生反诈中心*
 
-_社群，保护，开放_
+_元平台，分布式_
 
 自从最初的导师评价网（urfire）关闭，时至今日，一批一批的新导师评价数据分享平台的迭起兴衰，最终都落于 404 或收费闭塞。
 不知是何等阻力，让受过欺骗的学生和亟需信息的学生散若渺茫星火。故建此平台与机器人，革新方式，坚持“社群，保护，开放”的理念，信奉||密码朋克||、开源精神，愿此和谐共赢地持久性发展传承下去。
@@ -81,22 +79,48 @@ pub enum State {
         obj_teacher: ObjTeacher,
     },
     Comment {
-        object_id: String, // 待重构为 Obj
+        object_id: String, // todo 待重构为 Obj
         comment_type: CommentType,
     },
     Publish {
-        object_id: String, // 待重构为 Obj
+        object_id: String, // todo 待重构为 Obj
         comment: String,
         comment_type: CommentType,
     },
     /// 分页显示回调状态
     PagingCb {
-        pages: Vec<String>,
-        /// 上一个状态
-        prev_state: Box<State>,
-        prev_msg: String,
-        prev_op_keyboard: InlineKeyboardMarkup,
+        data: PagingCbData,
     },
+}
+
+/// 分页显示回调状态的数据
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct PagingCbData {
+    /// 各个页面的文字
+    pub pages: Vec<String>,
+    /// 可选的对各页的进一步操作
+    pub actions: Option<PagingCbActions>,
+    /// 上一个状态
+    pub prev_state: Box<State>,
+    /// 用于返回后的消息显示
+    /// msg 一定是 Markdown 格式的
+    pub prev_msg: String,
+    /// 用于返回后的内联回调键盘
+    pub prev_op_keyboard: InlineKeyboardMarkup,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct PagingCbActions {
+    /// 操作名，简短！
+    pub name: String,
+    /// 如操作，各个页面的下一个状态
+    pub action_states: Vec<State>,
+    /// 如操作，各个页面的下一个消息显示
+    /// msg 一定是 Markdown 格式的
+    pub action_msgs: Vec<String>,
+    /// 如操作，页面统一的可选的内联回调键盘
+    /// 若不需要，则 default 即可
+    pub action_op_keyboard: InlineKeyboardMarkup,
 }
 
 /// 开始功能选择的回调
@@ -128,12 +152,10 @@ pub enum ObjectOp {
 pub enum PagingOp {
     /// 页码
     Page(usize),
-    // /// 上一页
-    // Prev,
-    // /// 下一页
-    // Next,
     /// 返回
     Back,
+    /// 对当页对象的操作
+    Action(usize),
 }
 
 impl From<StartOp> for String {
@@ -160,7 +182,26 @@ impl From<String> for ObjectOp {
     }
 }
 
-pub fn build_op_keyboard() -> InlineKeyboardMarkup {
+pub fn start_op_keyboard() -> InlineKeyboardMarkup {
+    InlineKeyboardMarkup::new([
+        vec![InlineKeyboardButton::callback(
+            "🌳 开始查询 & 评价！",
+            StartOp::Tree,
+        )],
+        vec![
+            InlineKeyboardButton::callback("👔 快搜教师", StartOp::FindSupervisor),
+            InlineKeyboardButton::callback("💬 快搜评论", StartOp::FindComment),
+        ],
+        vec![
+            InlineKeyboardButton::callback("📊", StartOp::Status),
+            InlineKeyboardButton::url("🏛️", Url::parse("https://t.me/SAFC_group").unwrap()),
+            InlineKeyboardButton::url("🌐", Url::parse(WEB_URL).unwrap()),
+            InlineKeyboardButton::url("🐱", Url::parse(GITHUB_URL).unwrap()),
+        ],
+    ])
+}
+
+pub fn obj_op_keyboard() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new([
         vec![
             InlineKeyboardButton::callback("👀 查看评价", ObjectOp::Read),
@@ -180,17 +221,39 @@ pub fn build_op_keyboard() -> InlineKeyboardMarkup {
 
 /// `index` 从 0 开始的页码
 /// `total` 为总共的页数
-/// TODO 去除本页的按钮 以解决 `MessageNotModified`
-pub fn build_paging_keyboard(total: usize, index: usize) -> InlineKeyboardMarkup {
-    const COLS: usize = 3; // COLS * 2 + 1 == 一行显示最多的页码按钮数
+/// `action` 用于当前页的回调按钮
+pub fn build_paging_keyboard(
+    total: usize,
+    index: usize,
+    action: Option<&String>,
+) -> InlineKeyboardMarkup {
+    let mut buttons_2 = vec![InlineKeyboardButton::callback("↩️ 返回", PagingOp::Back)];
+    if total <= 1 && action.is_none() {
+        return InlineKeyboardMarkup::new([buttons_2]);
+    }
+
+    const COLS: usize = 2; // COLS * 2 + 1 == 一行显示最多的页码按钮数
     let start = index
         .saturating_sub(COLS)
         .min(total.saturating_sub(2 * COLS + 1));
-    let buttons_1 = (start..(start + 2 * COLS + 1).min(total))
+    let mut buttons_1: Vec<InlineKeyboardButton> = (start..(start + 2 * COLS + 1).min(total))
         .map(|x| InlineKeyboardButton::callback(format!("{}/{}", x + 1, total), PagingOp::Page(x)))
         .collect();
 
-    let mut buttons_2 = vec![InlineKeyboardButton::callback("↩️ 返回", PagingOp::Back)];
+    // buttons_1.retain(|x| x.text != format!("{}/{}", index + 1, total)); // 弃用
+    for x in buttons_1.iter_mut() {
+        if x.text == format!("{}/{}", index + 1, total) {
+            *x = match action {
+                Some(b) => InlineKeyboardButton::callback(b.clone(), PagingOp::Action(index)),
+                None => InlineKeyboardButton::callback(
+                    format!(">{}<", index + 1),
+                    PagingOp::Action(index),
+                ),
+            };
+            break;
+        }
+    }
+
     if index > 0 {
         buttons_2.push(InlineKeyboardButton::callback(
             "⬅️ 上页",
@@ -204,6 +267,28 @@ pub fn build_paging_keyboard(total: usize, index: usize) -> InlineKeyboardMarkup
         ));
     }
     InlineKeyboardMarkup::new([buttons_1, buttons_2])
+}
+
+/// 显示 [`ObjTeacher`] 详细的信息
+/// markdown 格式
+pub fn display_teacher_md(obj: &ObjTeacher) -> String {
+    format!(
+        "*{}*\n\
+        信息：{}\n\
+        评价数： {}\n\
+        该客体的初次添加日期：{}",
+        escape(obj.display_path().as_str()),
+        escape(obj.info.clone().unwrap_or("暂无".to_string()).as_str()),
+        escape(
+            SAFC_DB
+                .find_comment(&obj.object_id)
+                .unwrap()
+                .len()
+                .to_string()
+                .as_str()
+        ),
+        escape(obj.date.as_str())
+    )
 }
 
 /// 生成分页的评价 markdown

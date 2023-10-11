@@ -28,6 +28,15 @@
 
 ### 加密与安全 `sec`
 
+## 弱中心
+
+目前还仍然只是构想阶段，目前可以用以下*极其临时*的方法创建新中心：
+
+1. 获取可执行文件与数据库文件
+2. 向 [@botfather](https://t.me/botfather) 申请并运行 bot
+3. 在 [@SAFC_group](https://t.me/SAFC_group) 声名您的 bot
+4. 定期同步数据库
+
 ## TODOs
 
 tg bot 的功能比较受限，是否应该大力开发 web 端？

@@ -18,3 +18,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 2023-09-25 增加初步的 web 前端与后端
 2023-09-27 元平台：增加 pi-review.com 源
 2023-09-28 增加分页显示功能
+2023-10-11 更完善的分页功能

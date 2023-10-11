@@ -73,4 +73,6 @@
 
 ---
 
+[![GPL Licence](https://badges.frapsoft.com/os/gpl/gpl.png?v=103)](https://opensource.org/licenses/GPL-3.0/)
+
 [框架科工](https://craft.framist.top/) | 致力为虚无的世间献上一点花火🔥

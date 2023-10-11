@@ -101,6 +101,15 @@ pub struct ObjTeacher {
     pub object_id: String, // 此客体的 id
 }
 
+impl ObjTeacher {
+    pub fn display_path(&self) -> String {
+        format!(
+            "🧭 {} 🏫 {} 🏢 {} 👔 {}",
+            self.school_cate, self.university, self.department, self.supervisor
+        )
+    }
+}
+
 /// 评价类型：nest（评价的评价）, teacher, course, student, unity, info（wiki_like）
 #[derive(Debug, EnumString, Display, PartialEq, Clone, Deserialize, Serialize)]
 #[strum(serialize_all = "lowercase")]
@@ -230,15 +239,27 @@ impl SAFCdb {
 
     /// 模糊搜索
     /// 百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符。这些符号可以被组合使用。
-    pub fn find_supervisor_like(&self, s: &String) -> HandlerResult<Vec<Vec<String>>> {
+    ///
+    /// 返回搜到的 [`ObjTeacher`] 列表
+    pub fn find_supervisor_like(&self, s: &String) -> HandlerResult<Vec<ObjTeacher>> {
         let conn = self.pool.clone().get()?;
 
         let mut stmt = conn.prepare(
-            "SELECT school_cate, university, department, supervisor, object FROM objects WHERE \
-        supervisor LIKE (?1)",
+            "SELECT * FROM objects WHERE \
+            supervisor LIKE (?1)",
         )?;
         // let rows = stmt.query_map([s], |row| row.get(0))?;
-        let rows = stmt.query_map([s], |row| (0..5).map(|i| row.get(i)).collect())?;
+        let rows = stmt.query_map([s], |row| {
+            Ok(ObjTeacher {
+                school_cate: row.get::<_, String>(0)?,
+                university: row.get::<_, String>(1)?,
+                department: row.get::<_, String>(2)?,
+                supervisor: row.get::<_, String>(3)?,
+                date: row.get::<_, String>(4)?,
+                info: row.get::<_, String>(5).ok(),
+                object_id: row.get::<_, String>(6)?,
+            })
+        })?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
@@ -328,7 +349,7 @@ impl SAFCdb {
         Ok(None)
     }
 
-    /// 查找评价
+    /// 通过评价对象 `object_id` 查找评价
     ///
     /// 【评价表】comments : object < 评价 - 日期 - _来源分类 - _评价类型 - 发布人签名 - 评价 id (key)
     /// - object TEXT NOT NULL,
@@ -338,6 +359,8 @@ impl SAFCdb {
     /// - type TEXT NOT NULL,
     /// - author_sign TEXT,
     /// - id TEXT NOT NULL,
+    ///
+    /// 返回 [`ObjComment`]
     pub fn find_comment(&self, object_id: &String) -> HandlerResult<Vec<ObjComment>> {
         let conn = self.pool.clone().get()?;
 
@@ -430,7 +453,7 @@ impl SAFCdb {
         let c_count =
             conn.query_row::<i32, _, _>("SELECT COUNT(*) FROM comments", [], |row| row.get(0))?;
 
-        let start = chrono::Local::now() - chrono::Duration::days(365);
+        let start = chrono::Local::now() - chrono::Duration::days(31);
         let m_new = conn.query_row::<i32, _, _>(
             "SELECT COUNT(*) FROM comments WHERE date > ?",
             [start.format("%Y-%m-%d").to_string()],
@@ -444,7 +467,7 @@ impl SAFCdb {
         )?;
 
         Ok(format!(
-            "评价总数：{}, 实体客体总数：{}, 年新增客体数：{}, 年增评价数：{}",
+            "评价总数：{}, 实体客体总数：{}, 月新增客体数：{}, 月增评价数：{}",
             c_count, o_count, o_new, m_new
         ))
     }

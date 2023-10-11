@@ -4,7 +4,6 @@ use safc::sec::*;
 mod msg;
 use msg::*;
 
-use teloxide::utils::markdown::escape;
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
     prelude::*,
@@ -14,8 +13,6 @@ use teloxide::{
     },
     utils::command::BotCommands,
 };
-
-use url::Url;
 
 type MyDialogue = Dialogue<State, InMemStorage<State>>; // ? 要使用 sqlite 存储状态吗
 type HandlerResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -120,15 +117,7 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
     let callback_query_handler = Update::filter_callback_query()
         .branch(case![State::StartCb].endpoint(start_cb))
         .branch(case![State::Read { obj_teacher }].endpoint(read_or_comment_cb))
-        .branch(
-            case![State::PagingCb {
-                pages,
-                prev_state,
-                prev_msg,
-                prev_op_keyboard
-            }]
-            .endpoint(paging_cb),
-        )
+        .branch(case![State::PagingCb { data }].endpoint(paging_cb))
         .branch(dptree::endpoint(invalid_callback_query));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
@@ -170,34 +159,68 @@ async fn cancel_command(bot: Bot, dialogue: MyDialogue, msg: Message) -> Handler
 
 /// find_command 快速查找
 /// todo 改为回调的形式，来支持翻页，查找功能选择等问题
-async fn find_command(bot: Bot, _dialogue: MyDialogue, arg: String, msg: Message) -> HandlerResult {
+async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message) -> HandlerResult {
+    const MAX_PAGES: usize = 64;
+    // 串联关键字 todo 顺序问题
     let j = |x: &[&str]| format!("%{}%", x.join("%"));
     // arg 有效性验证
     let args: Vec<&str> = arg.split(' ').collect();
     if args.len() >= 2 {
         match args[0] {
             "客体" => {
-                let text = SAFC_DB
-                    .find_supervisor_like(&j(&args[1..]))?
+                let action_name = "选定".to_string();
+                let mut objs = SAFC_DB.find_supervisor_like(&j(&args[1..]))?;
+                objs.truncate(MAX_PAGES);
+                let pages: Vec<String> = objs
+                    .clone()
                     .into_iter()
-                    .map(|x| x.join(" > "))
-                    .collect::<Vec<String>>();
-                let text = if text.len() > 20 {
-                    format!("条目过多，仅显示前 20 条\n{}", text[..20].join("\n"))
-                // todo 应能翻页来显示所有
-                } else {
-                    text.join("\n")
-                };
+                    .map(|x| display_teacher_md(&x))
+                    .collect();
+                let action_states = objs
+                    .clone()
+                    .into_iter()
+                    .map(|x| State::Read { obj_teacher: x })
+                    .collect();
+                let action_msgs = objs
+                    .clone()
+                    .into_iter()
+                    .map(|x| format!("{}\n请选择操作：", x.display_path()))
+                    .collect();
+                let text = &pages[0];
+
                 bot.send_message(msg.chat.id, text)
+                    .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
+                    .parse_mode(MarkdownV2)
                     .reply_to_message_id(msg.id)
                     .await?;
+
+                dialogue
+                    .update(State::PagingCb {
+                        data: PagingCbData {
+                            pages,
+                            actions: Some(PagingCbActions {
+                                name: action_name,
+                                action_states,
+                                action_msgs,
+                                action_op_keyboard: obj_op_keyboard(),
+                            }),
+                            prev_state: Box::new(State::StartCb),
+                            prev_msg: "请选择操作：".to_string(),
+                            prev_op_keyboard: start_op_keyboard(),
+                        },
+                    })
+                    .await?;
+
                 return Ok(());
             }
             "评价" => {
-                let text = SAFC_DB
-                    .find_comment_like(&j(&args[1..]))?
-                    .iter()
-                    .map(|c: &ObjComment| {
+                let action_name = "回复此评价".to_string();
+                let mut objs = SAFC_DB.find_comment_like(&j(&args[1..]))?;
+                objs.truncate(MAX_PAGES);
+                let pages: Vec<String> = objs
+                    .clone()
+                    .into_iter()
+                    .map(|c: ObjComment| {
                         format!(
                             "💬 *针对 object `{}` 的评价：*\n\
                             *data {} \\| from {} \\| id `{}`*\n\
@@ -209,17 +232,49 @@ async fn find_command(bot: Bot, _dialogue: MyDialogue, arg: String, msg: Message
                             escape(c.description.replace("<br>", "\n").as_str())
                         )
                     })
-                    .collect::<Vec<String>>();
-                let text = if text.len() > 5 {
-                    format!("_条目过多，仅显示前 5 条_\n{}", text[..5].join("\n"))
-                // todo 应能翻页来显示所有
-                } else {
-                    text.join("\n")
-                };
+                    .collect();
+                let action_states = objs
+                    .clone()
+                    .into_iter()
+                    .map(|c| State::Comment {
+                        object_id: c.id,
+                        comment_type: CommentType::Nest,
+                    })
+                    .collect();
+                let action_msgs = objs
+                    .clone()
+                    .into_iter()
+                    .map(|c| {
+                        format!(
+                            "🆔 `{}`\n\
+                            \n请写下您对此客体的评价：",
+                            c.id
+                        )
+                    })
+                    .collect();
+                let text = &pages[0];
 
                 bot.send_message(msg.chat.id, text)
-                    .reply_to_message_id(msg.id)
+                    .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
                     .parse_mode(MarkdownV2)
+                    .reply_to_message_id(msg.id)
+                    .await?;
+
+                dialogue
+                    .update(State::PagingCb {
+                        data: PagingCbData {
+                            pages,
+                            actions: Some(PagingCbActions {
+                                name: action_name,
+                                action_states,
+                                action_msgs,
+                                ..Default::default()
+                            }),
+                            prev_state: Box::new(State::StartCb),
+                            prev_msg: "请选择操作：".to_string(),
+                            prev_op_keyboard: start_op_keyboard(),
+                        },
+                    })
                     .await?;
                 return Ok(());
             }
@@ -288,10 +343,8 @@ async fn _unable_command(bot: Bot, msg: Message) -> HandlerResult {
     Ok(())
 }
 
-async fn invalid_state(_bot: Bot, _msg: Message) -> HandlerResult {
-    // bot.send_message(msg.chat.id, "❎ 错误流程 - Type /help to see the usage.")
-    //     .await?;
-    log::warn!("invalid_state - Unable to handle the message.");
+async fn invalid_state(_bot: Bot, msg: Message) -> HandlerResult {
+    log::warn!("invalid state - Unable to handle the message: {:?}", msg);
     Ok(())
 }
 
@@ -301,7 +354,6 @@ async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
         format!("❎ 错误命令 - usage: \n{}", Command::descriptions()),
     )
     .await?;
-    log::warn!("invalid_command - Unable to handle the command");
     Ok(())
 }
 
@@ -309,22 +361,7 @@ async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
 async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, TgResponse::Hello.to_string())
         .parse_mode(MarkdownV2)
-        .reply_markup(InlineKeyboardMarkup::new([
-            vec![InlineKeyboardButton::callback(
-                "🌳 开始查询 & 评价！",
-                StartOp::Tree,
-            )],
-            vec![
-                InlineKeyboardButton::callback("👔 快搜教师", StartOp::FindSupervisor),
-                InlineKeyboardButton::callback("💬 快搜评论", StartOp::FindComment),
-            ],
-            vec![
-                InlineKeyboardButton::callback("📊", StartOp::Status),
-                InlineKeyboardButton::url("🏛️", Url::parse("https://t.me/SAFC_group").unwrap()),
-                InlineKeyboardButton::url("🌐", Url::parse(WEB_URL).unwrap()),
-                InlineKeyboardButton::url("🐱", Url::parse(GITHUB_URL).unwrap()),
-            ],
-        ]))
+        .reply_markup(start_op_keyboard())
         .reply_to_message_id(msg.id)
         .await?;
     dialogue.update(State::StartCb).await?; // 更新会话状态
@@ -337,7 +374,7 @@ async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerRe
         match serde_json::from_str(op)? {
             StartOp::Tree => {
                 let data = SAFC_DB.find_school_cate()?;
-                let keyboard = _convert_to_n_columns_keyboard(data, 3);
+                let keyboard = convert_to_n_columns_keyboard(data, 3);
                 let text = "您想查询或评价的「学校类别」是？您可以直接输入或者在下面的键盘选择框中选择\n\
                     _键盘选择框中没有的也可以直接输入来新建；如果是上个类别本身请选择或输入 `self`。下同_\n";
                 bot.send_message(dialogue.chat_id(), text)
@@ -351,11 +388,11 @@ async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerRe
                 // 可选：您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
                 // 例如：习__\n\
                 // 也可以使用命令 /find 客体 习__\n";
-                let text = "功能尚未实现\n请使用命令 /find";
+                let text = "功能尚未实现\n请使用命令 /find"; // todo
                 bot.send_message(dialogue.chat_id(), text).await?;
             }
             StartOp::FindComment => {
-                let text = "功能尚未实现\n请使用命令 /find";
+                let text = "功能尚未实现\n请使用命令 /find"; // todo
                 bot.send_message(dialogue.chat_id(), text).await?;
             }
             StartOp::Status => {
@@ -383,7 +420,7 @@ async fn choose_university(bot: Bot, dialogue: MyDialogue, msg: Message) -> Hand
 }
 
 async fn choose_university_msg(s_c: &String, bot: &Bot, msg: &Message) -> HandlerResult {
-    let keyboard = _convert_to_n_columns_keyboard(SAFC_DB.find_university(s_c)?, 2);
+    let keyboard = convert_to_n_columns_keyboard(SAFC_DB.find_university(s_c)?, 2);
     bot.send_message(msg.chat.id, format!("🧭 {s_c}\n您想查询的「学校」是："))
         .reply_markup(KeyboardMarkup::new(keyboard).input_field_placeholder("学校？".to_string()))
         .reply_to_message_id(msg.id)
@@ -419,7 +456,7 @@ async fn choose_department_msg(
     bot: &Bot,
     msg: &Message,
 ) -> HandlerResult {
-    let keyboard = _convert_to_n_columns_keyboard(SAFC_DB.find_department(s_c, university)?, 1);
+    let keyboard = convert_to_n_columns_keyboard(SAFC_DB.find_department(s_c, university)?, 1);
     bot.send_message(
         msg.chat.id,
         format!("🧭 {s_c} 🏫 {university}\n您想查询的「学院」是："),
@@ -460,7 +497,7 @@ async fn choose_supervisor_msg(
     bot: &Bot,
     msg: &Message,
 ) -> HandlerResult {
-    let keyboard = _convert_to_n_columns_keyboard(
+    let keyboard = convert_to_n_columns_keyboard(
         SAFC_DB.find_supervisor(school_cate, university, department)?,
         3,
     );
@@ -523,12 +560,14 @@ async fn read_or_comment(
                 bot.send_message(
                     msg.chat.id,
                     format!(
-                        "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
-                        请选择操作："
+                        "{}\n\
+                        请选择操作：",
+                        display_teacher_md(&obj_teacher)
                     ),
                 )
                 .reply_to_message_id(msg.id)
-                .reply_markup(build_op_keyboard())
+                .parse_mode(MarkdownV2)
+                .reply_markup(obj_op_keyboard())
                 .await?;
                 dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
             }
@@ -560,6 +599,7 @@ async fn read_or_comment_cb(
     if let Some(op) = &q.data {
         match serde_json::from_str(op)? {
             ObjectOp::Read => {
+                let action_name = "回复此评价".to_string();
                 let pages: Vec<String> = get_comment_pages(&object_id)?
                     .iter()
                     .enumerate()
@@ -567,7 +607,7 @@ async fn read_or_comment_cb(
                         format!(
                             "*👔 {} `{}` 的评价 第 {} 页：*\n\
                             {}\n\
-                            _使用 /comment \\<id\\> 给评价写评价。_ ",
+                            _使用 /comment \\<id\\> 给任意评价写评价。_ ",
                             escape(&supervisor),
                             &object_id,
                             i + 1,
@@ -578,7 +618,7 @@ async fn read_or_comment_cb(
                 if pages.is_empty() {
                     if let Some(Message { id, chat, .. }) = q.message {
                         bot.edit_message_text(chat.id, id, "🈳 _此客体暂无评价！_".to_string())
-                            .reply_markup(build_op_keyboard())
+                            .reply_markup(obj_op_keyboard())
                             .parse_mode(MarkdownV2)
                             .await?;
                     }
@@ -587,19 +627,44 @@ async fn read_or_comment_cb(
                     let text = &pages[0];
                     if let Some(Message { id, chat, .. }) = q.message {
                         bot.edit_message_text(chat.id, id, text)
-                            .reply_markup(build_paging_keyboard(pages.len(), 0))
+                            .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
                             .parse_mode(MarkdownV2)
                             .await?;
                     }
+                    let comments = SAFC_DB.find_comment(&object_id)?;
+                    let action_msgs = comments
+                        .iter()
+                        .map(|x| format!("回复评价 `{}`\n/cancel 取消", &x.id))
+                        .collect();
+                    let action_states = comments
+                        .iter()
+                        .map(|x| State::Comment {
+                            object_id: x.id.clone(),
+                            comment_type: CommentType::Nest,
+                        })
+                        .collect();
+
+                    // 进入读评价的分页状态
                     dialogue
                         .update(State::PagingCb {
-                            pages,
-                            prev_state: Box::new(State::Read { obj_teacher }),
-                            prev_msg: format!(
-                                "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
-                                请选择操作："
-                            ),
-                            prev_op_keyboard: build_op_keyboard(),
+                            data: PagingCbData {
+                                pages,
+                                actions: Some(PagingCbActions {
+                                    name: action_name,
+                                    action_states,
+                                    action_msgs,
+                                    ..Default::default()
+                                }),
+                                prev_state: Box::new(State::Read { obj_teacher }),
+                                prev_msg: escape(
+                                    format!(
+                                    "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
+                                    请选择操作："
+                                )
+                                    .as_str(),
+                                ),
+                                prev_op_keyboard: obj_op_keyboard(),
+                            },
                         })
                         .await?;
                 }
@@ -614,7 +679,7 @@ async fn read_or_comment_cb(
                 log::info!("评价客体已增加！");
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text)
-                        .reply_markup(build_op_keyboard())
+                        .reply_markup(obj_op_keyboard())
                         .await?;
                 } // else ... todo
                   // dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
@@ -644,6 +709,7 @@ async fn read_or_comment_cb(
                 dialogue.exit().await?; // 结束会话
             }
             ObjectOp::Info => {
+                // todo 转为使用 display_teacher_md
                 let text = format!(
                     "🧭 {school_cate} 🏫 {university} 🏢 {department} 👔 {supervisor}\n\
                     该客体的初次添加日期：{}\n\
@@ -652,7 +718,7 @@ async fn read_or_comment_cb(
                 );
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text)
-                        .reply_markup(build_op_keyboard())
+                        .reply_markup(obj_op_keyboard())
                         .await?;
                 } // else ... todo
                   // dialogue.update(State::Read { obj_teacher }).await?; // 更新会话状态
@@ -694,17 +760,21 @@ async fn read_or_comment_cb(
 }
 
 /// 分页会话回调处理函数
+/// 注意，parse_mode(MarkdownV2) 现在还是必须的
+/// 从回调中获取目前的页码 `index`
 async fn paging_cb(
     bot: Bot,
     dialogue: MyDialogue,
-    (pages, prev_state, prev_msg, prev_op_keyboard): (
-        Vec<String>,
-        Box<State>,
-        String,
-        InlineKeyboardMarkup,
-    ),
+    data: PagingCbData,
     q: CallbackQuery,
 ) -> HandlerResult {
+    let PagingCbData {
+        pages,
+        actions,
+        prev_state,
+        prev_msg,
+        prev_op_keyboard,
+    } = data;
     bot.answer_callback_query(q.id).await?;
     if let Some(op) = &q.data {
         match serde_json::from_str(op)? {
@@ -713,17 +783,39 @@ async fn paging_cb(
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, text)
                         .parse_mode(MarkdownV2)
-                        .reply_markup(build_paging_keyboard(pages.len(), index))
+                        .reply_markup(build_paging_keyboard(
+                            pages.len(),
+                            index,
+                            actions.map(|x| x.name.clone()).as_ref(),
+                        ))
                         .await?;
                 }
             }
             PagingOp::Back => {
                 if let Some(Message { id, chat, .. }) = q.message {
                     bot.edit_message_text(chat.id, id, prev_msg)
+                        .parse_mode(MarkdownV2)
                         .reply_markup(prev_op_keyboard)
                         .await?;
                 }
                 dialogue.update(*prev_state).await?;
+            }
+            PagingOp::Action(index) => {
+                if let Some(PagingCbActions {
+                    name: _,
+                    action_states,
+                    action_msgs,
+                    action_op_keyboard,
+                }) = actions
+                {
+                    if let Some(Message { id, chat, .. }) = q.message {
+                        bot.edit_message_text(chat.id, id, &action_msgs[index])
+                            .parse_mode(MarkdownV2)
+                            .reply_markup(action_op_keyboard)
+                            .await?;
+                    }
+                    dialogue.update(action_states[index].clone()).await?;
+                }
             }
         }
     }
@@ -810,7 +902,7 @@ async fn publish_comment(
                 )
                 .reply_to_message_id(msg.id)
                 .parse_mode(MarkdownV2)
-                .reply_markup(build_op_keyboard())
+                .reply_markup(obj_op_keyboard())
                 .await?;
                 dialogue.update(State::Read { obj_teacher }).await?;
             }
@@ -838,7 +930,7 @@ async fn publish_comment(
 }
 
 /// 一维向量转换为 n 列纵向键盘
-fn _convert_to_n_columns_keyboard(data: Vec<String>, n: usize) -> Vec<Vec<KeyboardButton>> {
+fn convert_to_n_columns_keyboard(data: Vec<String>, n: usize) -> Vec<Vec<KeyboardButton>> {
     data.chunks(n)
         .map(|chunk| chunk.iter().map(KeyboardButton::new).collect())
         .collect()
