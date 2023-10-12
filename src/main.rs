@@ -1,6 +1,7 @@
 use safc::db::*;
-// use safc::msg::*;
 use safc::sec::*;
+
+// msg 是 bot 独用的 mod
 mod msg;
 use msg::*;
 
@@ -57,7 +58,7 @@ async fn main() {
         .await;
 }
 
-/// 责任链模式
+/// 责任链模式 的 SAFC bot
 /// branch 是分支的意思 参考：
 /// https://docs.rs/dptree/0.3.0/dptree/prelude/struct.Handler.html#the-difference-between-chaining-and-branching
 fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -65,9 +66,6 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
 
     // 命令
     let command_handler = teloxide::filter_command::<Command, _>()
-        // .branch(
-        //     case![State::Start].branch(case![Command::Start].endpoint(start)), // 只有 start 状态下才能用 /start
-        // )
         .branch(case![Command::Start].endpoint(start))
         .branch(case![Command::Help].endpoint(help_command))
         .branch(case![Command::Cancel].endpoint(cancel_command))
@@ -76,44 +74,26 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(case![Command::Comment(arg)].endpoint(comment_command))
         .branch(dptree::endpoint(invalid_command));
 
+    // 文本消息
+    #[rustfmt::skip]
+    let text_handler = Message::filter_text()
+        .branch(case![State::FindSupervisor].endpoint(find_supervisor))
+        .branch(case![State::FindComment].endpoint(find_comment))
+        .branch(case![State::SchoolCate].endpoint(choose_university))
+        .branch(case![State::University { school_cate }].endpoint(choose_department))
+        .branch(case![State::Department { school_cate, university }].endpoint(choose_supervisor))
+        .branch(case![State::Supervisor { school_cate, university, department }].endpoint(read_or_comment))
+        .branch(case![State::Comment { object_id, comment_type }].endpoint(add_comment))
+        .branch(case![State::Publish { object_id, comment, comment_type }].endpoint(publish_comment));
+
     // 消息
     let message_handler = Update::filter_message()
         .branch(command_handler) // 命令也是消息的一种
-        .branch(case![State::SchoolCate].endpoint(choose_university))
-        .branch(case![State::University { school_cate }].endpoint(choose_department))
-        .branch(
-            case![State::Department {
-                school_cate,
-                university
-            }]
-            .endpoint(choose_supervisor),
-        )
-        .branch(
-            case![State::Supervisor {
-                school_cate,
-                university,
-                department
-            }]
-            .endpoint(read_or_comment),
-        )
-        .branch(
-            case![State::Comment {
-                object_id,
-                comment_type
-            }]
-            .endpoint(add_comment),
-        )
-        .branch(
-            case![State::Publish {
-                object_id,
-                comment,
-                comment_type
-            }]
-            .endpoint(publish_comment),
-        )
+        .branch(text_handler)
         .branch(dptree::endpoint(invalid_state));
 
     // 回调
+    // todo 解决回调信息的串扰问题
     let callback_query_handler = Update::filter_callback_query()
         .branch(case![State::StartCb].endpoint(start_cb))
         .branch(case![State::Read { obj_teacher }].endpoint(read_or_comment_cb))
@@ -121,7 +101,6 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(dptree::endpoint(invalid_callback_query));
 
     dialogue::enter::<Update, InMemStorage<State>, State, _>()
-        // .branch(Message::filter_text().branch(message_handler)) // TODO
         .branch(message_handler)
         .branch(callback_query_handler)
 }
@@ -158,124 +137,17 @@ async fn cancel_command(bot: Bot, dialogue: MyDialogue, msg: Message) -> Handler
 }
 
 /// find_command 快速查找
-/// todo 改为回调的形式，来支持翻页，查找功能选择等问题
 async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message) -> HandlerResult {
-    const MAX_PAGES: usize = 64;
-    // 串联关键字 todo 顺序问题
-    let j = |x: &[&str]| format!("%{}%", x.join("%"));
     // arg 有效性验证
     let args: Vec<&str> = arg.split(' ').collect();
     if args.len() >= 2 {
         match args[0] {
             "客体" => {
-                let action_name = "选定".to_string();
-                let mut objs = SAFC_DB.find_supervisor_like(&j(&args[1..]))?;
-                objs.truncate(MAX_PAGES);
-                let pages: Vec<String> = objs
-                    .clone()
-                    .into_iter()
-                    .map(|x| display_teacher_md(&x))
-                    .collect();
-                let action_states = objs
-                    .clone()
-                    .into_iter()
-                    .map(|x| State::Read { obj_teacher: x })
-                    .collect();
-                let action_msgs = objs
-                    .clone()
-                    .into_iter()
-                    .map(|x| format!("{}\n请选择操作：", x.display_path()))
-                    .collect();
-                let text = &pages[0];
-
-                bot.send_message(msg.chat.id, text)
-                    .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
-                    .parse_mode(MarkdownV2)
-                    .reply_to_message_id(msg.id)
-                    .await?;
-
-                dialogue
-                    .update(State::PagingCb {
-                        data: PagingCbData {
-                            pages,
-                            actions: Some(PagingCbActions {
-                                name: action_name,
-                                action_states,
-                                action_msgs,
-                                action_op_keyboard: obj_op_keyboard(),
-                            }),
-                            prev_state: Box::new(State::StartCb),
-                            prev_msg: "请选择操作：".to_string(),
-                            prev_op_keyboard: start_op_keyboard(),
-                        },
-                    })
-                    .await?;
-
+                find_supervisor_msg(&args[1..], &bot, &msg, dialogue).await?;
                 return Ok(());
             }
             "评价" => {
-                let action_name = "回复此评价".to_string();
-                let mut objs = SAFC_DB.find_comment_like(&j(&args[1..]))?;
-                objs.truncate(MAX_PAGES);
-                let pages: Vec<String> = objs
-                    .clone()
-                    .into_iter()
-                    .map(|c: ObjComment| {
-                        format!(
-                            "💬 *针对 object `{}` 的评价：*\n\
-                            *data {} \\| from {} \\| id `{}`*\n\
-                            {}\n",
-                            c.object,
-                            escape(c.date.as_str()),
-                            c.source_cate,
-                            c.id,
-                            escape(c.description.replace("<br>", "\n").as_str())
-                        )
-                    })
-                    .collect();
-                let action_states = objs
-                    .clone()
-                    .into_iter()
-                    .map(|c| State::Comment {
-                        object_id: c.id,
-                        comment_type: CommentType::Nest,
-                    })
-                    .collect();
-                let action_msgs = objs
-                    .clone()
-                    .into_iter()
-                    .map(|c| {
-                        format!(
-                            "🆔 `{}`\n\
-                            \n请写下您对此客体的评价：",
-                            c.id
-                        )
-                    })
-                    .collect();
-                let text = &pages[0];
-
-                bot.send_message(msg.chat.id, text)
-                    .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
-                    .parse_mode(MarkdownV2)
-                    .reply_to_message_id(msg.id)
-                    .await?;
-
-                dialogue
-                    .update(State::PagingCb {
-                        data: PagingCbData {
-                            pages,
-                            actions: Some(PagingCbActions {
-                                name: action_name,
-                                action_states,
-                                action_msgs,
-                                ..Default::default()
-                            }),
-                            prev_state: Box::new(State::StartCb),
-                            prev_msg: "请选择操作：".to_string(),
-                            prev_op_keyboard: start_op_keyboard(),
-                        },
-                    })
-                    .await?;
+                find_comment_msg(&args[1..], &bot, &msg, dialogue).await?;
                 return Ok(());
             }
             _ => {}
@@ -290,7 +162,7 @@ async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message)
             - /find 评价 前途 无量\n\
             可选的高级操作：\n\
             - 您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
-            目前的此命令操作是临时的，后续会改为内联按钮的形式来支持翻页，功能选择等",
+            您也可以使用 /start 中的功能按钮使用这些功能",
     )
     .await?;
     Ok(())
@@ -351,7 +223,7 @@ async fn invalid_state(_bot: Bot, msg: Message) -> HandlerResult {
 async fn invalid_command(bot: Bot, msg: Message) -> HandlerResult {
     bot.send_message(
         msg.chat.id,
-        format!("❎ 错误命令 - usage: \n{}", Command::descriptions()),
+        format!("❌ 错误命令 - usage: \n{}", Command::descriptions()),
     )
     .await?;
     Ok(())
@@ -369,7 +241,7 @@ async fn start(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
 }
 
 async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerResult {
-    bot.answer_callback_query(q.id).await?;
+    bot.answer_callback_query(q.id).await?; // todo 先别 await
     if let Some(op) = &q.data {
         match serde_json::from_str(op)? {
             StartOp::Tree => {
@@ -384,16 +256,20 @@ async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerRe
                 dialogue.update(State::SchoolCate).await?; // 更新会话状态
             }
             StartOp::FindSupervisor => {
-                // let text = "请回复你要查找的 👔\n\
-                // 可选：您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
-                // 例如：习__\n\
-                // 也可以使用命令 /find 客体 习__\n";
-                let text = "功能尚未实现\n请使用命令 /find"; // todo
+                let text = "请回复你要查找的 👔\n\
+                    可选：您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
+                    例如：习__\n\
+                    也可以使用命令 /find 客体 习__\n";
                 bot.send_message(dialogue.chat_id(), text).await?;
+                dialogue.update(State::FindSupervisor).await?;
             }
             StartOp::FindComment => {
-                let text = "功能尚未实现\n请使用命令 /find"; // todo
+                let text = "请回复你要查找的评价关键字，空格分隔\n\
+                    可选：您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
+                    例如：前途 无量\n\
+                    也可以使用命令 /find 评价 前途 无量"; // todo
                 bot.send_message(dialogue.chat_id(), text).await?;
+                dialogue.update(State::FindComment).await?;
             }
             StartOp::Status => {
                 let text = SAFC_DB.db_status()?;
@@ -401,6 +277,150 @@ async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerRe
             }
         }
     }
+    Ok(())
+}
+
+/// 用于模糊搜索的关键字列表的处理函数
+/// todo 去除顺序的影响
+fn search_keys_helper(s: &[&str]) -> String {
+    format!("%{}%", s.join("%"))
+}
+
+/// 快速查找客体的消息
+/// 进入分页状态，最终的返回状态为 [`State::StartCb`]
+async fn find_supervisor_msg(
+    args: &[&str],
+    bot: &Bot,
+    msg: &Message,
+    dialogue: MyDialogue,
+) -> HandlerResult {
+    let action_name = "选定".to_string();
+    let mut objs = SAFC_DB.find_supervisor_like(&search_keys_helper(args))?;
+    objs.truncate(MSG_MAX_PAGES);
+    let pages: Vec<String> = objs
+        .clone()
+        .into_iter()
+        .map(|x| display_teacher_md(&x))
+        .collect();
+    let action_states = objs
+        .clone()
+        .into_iter()
+        .map(|x| State::Read { obj_teacher: x })
+        .collect();
+    let action_msgs = objs
+        .clone()
+        .into_iter()
+        .map(|x| format!("{}\n请选择操作：", x.display_path()))
+        .collect();
+    let text = &pages[0];
+    bot.send_message(msg.chat.id, text)
+        .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
+        .parse_mode(MarkdownV2)
+        .reply_to_message_id(msg.id)
+        .await?;
+    dialogue
+        .update(State::PagingCb {
+            data: PagingCbData {
+                pages,
+                actions: Some(PagingCbActions {
+                    name: action_name,
+                    action_states,
+                    action_msgs,
+                    action_op_keyboard: obj_op_keyboard(),
+                }),
+                prev_state: Box::new(State::StartCb),
+                prev_msg: "请选择操作：".to_string(),
+                prev_op_keyboard: start_op_keyboard(),
+            },
+        })
+        .await?;
+    Ok(())
+}
+
+/// 快速查找评论的消息
+/// 进入分页状态，最终的返回状态为 [`State::StartCb`]
+async fn find_comment_msg(
+    args: &[&str],
+    bot: &Bot,
+    msg: &Message,
+    dialogue: MyDialogue,
+) -> HandlerResult {
+    let action_name = "回复此评价".to_string();
+    let mut objs = SAFC_DB.find_comment_like(&search_keys_helper(args))?;
+    objs.truncate(MSG_MAX_PAGES);
+    let pages: Vec<String> = objs
+        .clone()
+        .into_iter()
+        .map(|c: ObjComment| {
+            format!(
+                "💬 *针对 object `{}` 的评价：*\n\
+                *data {} \\| from {} \\| id `{}`*\n\
+                {}\n",
+                c.object,
+                escape(c.date.as_str()),
+                c.source_cate,
+                c.id,
+                escape(c.description.replace("<br>", "\n").as_str())
+            )
+        })
+        .collect();
+    let action_states = objs
+        .clone()
+        .into_iter()
+        .map(|c| State::Comment {
+            object_id: c.id,
+            comment_type: CommentType::Nest,
+        })
+        .collect();
+    let action_msgs = objs
+        .clone()
+        .into_iter()
+        .map(|c| {
+            format!(
+                "🆔 `{}`\n\
+                \n请写下您对此客体的评价：",
+                c.id
+            )
+        })
+        .collect();
+    let text = &pages[0];
+
+    bot.send_message(msg.chat.id, text)
+        .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
+        .parse_mode(MarkdownV2)
+        .reply_to_message_id(msg.id)
+        .await?;
+
+    dialogue
+        .update(State::PagingCb {
+            data: PagingCbData {
+                pages,
+                actions: Some(PagingCbActions {
+                    name: action_name,
+                    action_states,
+                    action_msgs,
+                    ..Default::default()
+                }),
+                prev_state: Box::new(State::StartCb),
+                prev_msg: "请选择操作：".to_string(),
+                prev_op_keyboard: start_op_keyboard(),
+            },
+        })
+        .await?;
+    Ok(())
+}
+
+/// 快速查找教师 状态的处理函数
+async fn find_supervisor(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
+    let args: Vec<&str> = msg.text().ok_or("None msg err")?.split(' ').collect();
+    find_supervisor_msg(&args, &bot, &msg, dialogue).await?;
+    Ok(())
+}
+
+/// 快速查找教师 状态的处理函数
+async fn find_comment(bot: Bot, dialogue: MyDialogue, msg: Message) -> HandlerResult {
+    let args: Vec<&str> = msg.text().ok_or("None msg err")?.split(' ').collect();
+    find_comment_msg(&args, &bot, &msg, dialogue).await?;
     Ok(())
 }
 

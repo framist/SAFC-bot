@@ -7,11 +7,15 @@ use url::Url;
 use safc::db::*;
 
 // 有没有更优雅的方法？
+// 放在这里是为了让 `main` 引用，而不是 `msg` 引用 `main`
 use lazy_static::lazy_static;
 lazy_static! {
     /// bot 的全局唯一数据库池
     pub static ref SAFC_DB: SAFCdb = SAFCdb::new();
 }
+
+/// 最大分页大小
+pub const MSG_MAX_PAGES: usize = 99;
 
 const GITHUB_URL: &str = "https://github.com/framist/SAFC-bot";
 const WEB_URL: &str = "https://framist.github.io/safc";
@@ -62,6 +66,10 @@ pub enum State {
     Start,
     /// 开始功能选单回调状态
     StartCb,
+    /// 快速搜索教师
+    FindSupervisor,
+    /// 快速搜索评论
+    FindComment,
     SchoolCate,
     University {
         school_cate: String,
