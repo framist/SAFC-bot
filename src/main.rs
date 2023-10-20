@@ -312,7 +312,7 @@ async fn find_supervisor_msg(
         .into_iter()
         .map(|x| format!("{}\n请选择操作：", x.display_path()))
         .collect();
-    let text = &pages[0];
+    let text = &pages[0]; // ! bug here
     bot.send_message(msg.chat.id, text)
         .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
         .parse_mode(MarkdownV2)

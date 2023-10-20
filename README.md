@@ -3,14 +3,13 @@
   <!-- <img width="150" heigth="150" src="./doc/asserts/icon.png"> -->
   <h1>SAFC</h1>
   <b>🧪 in developing but already in servering!</b><br/>
-  <i>社群，安全，开源——不只是评价导师</i><br/>
+  <i>元平台、弱中心 —— 不只是评价导师</i><br/>
   <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | --> 
   <a href="https://framist.github.io/safc">网页端</a> |
   <a href="https://t.me/SAFC_bak_bot">Telegram 机器人</a> |
   <a href="https://t.me/SAFC_group">群组社区</a><br/> 
 </div>
 
-# 大学生反诈中心 SAFC
 
 [使用指南](./doc/usage.md)
 
@@ -24,7 +23,7 @@
 
 自从最初的导师评价网（urfire）关闭，时至今日，一批一批的新导师评价数据分享平台的迭起兴衰，最终都落于 404 或收费闭塞。
 不知是何等阻力，让受过欺骗的学生和亟需信息的学生散若渺茫星火。
-故建此平台与机器人，革新方式，坚持“社群，保护，开放”的理念，信奉密码朋克、开源精神，愿此和谐共赢地持久性发展传承下去。
+故建此平台（大学生反诈中心，SAFC）与机器人，革新方式，坚持“社群，保护，开放”的理念，信奉密码朋克、开源精神，愿此和谐共赢地持久性发展传承下去。
 
 ## 目标
 

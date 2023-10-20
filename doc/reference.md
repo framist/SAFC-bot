@@ -1,5 +1,7 @@
 # 参考与调研
 
+## 相似平台与数据来源
+
 - [本平台使用的其他数据来源](../script/crawlers/README.md)
 - 目前还活着的相似站点：
   - [PI Review - 研究生导师点评网站](https://pi-review.com/)
@@ -12,3 +14,5 @@
     - 付费站点
   - [GRADPI](https://www.gradpi.com/)
     - 英文站点
+
+## 项目初衷
