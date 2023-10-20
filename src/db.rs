@@ -240,7 +240,7 @@ impl SAFCdb {
     /// 模糊搜索
     /// 百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符。这些符号可以被组合使用。
     ///
-    /// 返回搜到的 [`ObjTeacher`] 列表
+    /// 返回搜到的 [`ObjTeacher`] 列表，可为空
     pub fn find_supervisor_like(&self, s: &String) -> HandlerResult<Vec<ObjTeacher>> {
         let conn = self.pool.clone().get()?;
 

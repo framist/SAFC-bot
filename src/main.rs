@@ -141,6 +141,7 @@ async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message)
     // arg 有效性验证
     let args: Vec<&str> = arg.split(' ').collect();
     if args.len() >= 2 {
+        // 此处取下标必不会 panic
         match args[0] {
             "客体" => {
                 find_supervisor_msg(&args[1..], &bot, &msg, dialogue).await?;
@@ -294,8 +295,14 @@ async fn find_supervisor_msg(
     msg: &Message,
     dialogue: MyDialogue,
 ) -> HandlerResult {
-    let action_name = "选定".to_string();
     let mut objs = SAFC_DB.find_supervisor_like(&search_keys_helper(args))?;
+    if objs.is_empty() {
+        bot.send_message(msg.chat.id, ":( 找不到所查询的导师")
+            .reply_to_message_id(msg.id)
+            .await?;
+        return Ok(());
+    }
+    let action_name = "选定".to_string();
     objs.truncate(MSG_MAX_PAGES);
     let pages: Vec<String> = objs
         .clone()
@@ -312,7 +319,7 @@ async fn find_supervisor_msg(
         .into_iter()
         .map(|x| format!("{}\n请选择操作：", x.display_path()))
         .collect();
-    let text = &pages[0]; // ! bug here
+    let text = &pages[0]; // assert!(pages.len() >= 1);
     bot.send_message(msg.chat.id, text)
         .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
         .parse_mode(MarkdownV2)
@@ -345,8 +352,14 @@ async fn find_comment_msg(
     msg: &Message,
     dialogue: MyDialogue,
 ) -> HandlerResult {
-    let action_name = "回复此评价".to_string();
     let mut objs = SAFC_DB.find_comment_like(&search_keys_helper(args))?;
+    if objs.is_empty() {
+        bot.send_message(msg.chat.id, ":( 查询无结果")
+            .reply_to_message_id(msg.id)
+            .await?;
+        return Ok(());
+    }
+    let action_name = "回复此评价".to_string();
     objs.truncate(MSG_MAX_PAGES);
     let pages: Vec<String> = objs
         .clone()
@@ -383,7 +396,7 @@ async fn find_comment_msg(
             )
         })
         .collect();
-    let text = &pages[0];
+    let text = &pages[0]; // assert!(pages.len() >= 1);
 
     bot.send_message(msg.chat.id, text)
         .reply_markup(build_paging_keyboard(pages.len(), 0, Some(&action_name)))
