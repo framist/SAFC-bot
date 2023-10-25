@@ -64,16 +64,22 @@
 
 ## 开发
 
-项目构成、开发参考、未来的开发计划参见 [develop.md](./doc/develop.md)
+期待您的加入！项目构成、开发参考、未来的开发计划参见 [develop.md](./doc/develop.md)；项目更新日志见 [CHANGELOG.md](./CHANGELOG.md)。
 
-我们急缺各类人手，期待您的加入！
+感谢每一个为此项目贡献过源码的同志：
 
-[更新日志](./CHANGELOG.md)
-
-## 致谢
+<a href="https://github.com/framist/SAFC-bot/contributors">
+  <img src="https://contrib.rocks/image?repo=framist/SAFC-bot" />
+</a>
 
 ---
 
-[![GPL Licence](https://badges.frapsoft.com/os/gpl/gpl.png?v=103)](https://opensource.org/licenses/GPL-3.0/)
+![GitHub](https://img.shields.io/github/license/framist/SAFC-bot?style=flat-square)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/framist/SAFC-bot/ci.yml?branch=main&style=flat-square)](https://github.com/framist/SAFC-bot/actions)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/framist/SAFC-bot?style=flat-square)](https://github.com/framist/SAFC-bot/graphs/commit-activity)
+[![GitHub contributors](https://img.shields.io/github/contributors/framist/SAFC-bot?style=flat-square)](https://github.com/framist/SAFC-bot/graphs/contributors)
+![GitHub Repo stars](https://img.shields.io/github/stars/framist/SAFC-bot?style=flat-square)
+
+
 
 [框架科工](https://craft.framist.top/) | 致力为虚无的世间献上一点花火🔥
