@@ -1,45 +1,52 @@
 name: rust checks
-on:
-  push:
-    branches:
-      - "**"
-    tags:
-      - "v*"
-  pull_request:
-    branches:
-      - "**"
-
+on: [pull_request]
 jobs:
-  rustfmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: rust Cache
-      uses: Swatinem/rust-cache@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-    - name: add Rustfmt
-      run: rustup component add rustfmt
-    - name: Rustfmt
-      run: cargo fmt -- --check
-
-  clippy_check:
-    name: Clippy
+  check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: rust Cache
-        uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
-      - name: add clippy
-        run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
+          override: true
+      - run: cargo check
+
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: cargo test
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add clippy
+      - run: cargo clippy -- -D warnings
