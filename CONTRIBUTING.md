@@ -1,6 +1,6 @@
 # Contributing
 
-Before contributing, please read [our code style](./CODE_STYLE.md) and [the license](./LICENSE).
+Before contributing, please read ~~[our code style](./CODE_STYLE.md) and~~ [the license](./LICENSE).
 
 To change the source code, fork the `master` branch of this repository and work inside your own branch. Then send us a PR into `master` branch and wait for the CI to check everything. However, you'd better check changes first locally:
 

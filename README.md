@@ -11,7 +11,7 @@
 </div>
 
 
-[使用指南](./doc/usage.md)
+[使用指南](./doc/usage.md) | [English](./doc/README_en.md)
 
 <details>
 <summary>Demo</summary>
@@ -69,6 +69,8 @@
 我们急缺各类人手，期待您的加入！
 
 [更新日志](./CHANGELOG.md)
+
+## 致谢
 
 ---
 

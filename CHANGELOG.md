@@ -20,3 +20,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 2023-09-28 增加分页显示功能
 2023-10-11 更完善的分页功能
 2023-10-13 完成开始功能选择中的「快搜教师」和「快搜评论」功能
+2023-10-20 修正下标溢出 bug
