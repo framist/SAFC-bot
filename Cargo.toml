@@ -20,7 +20,6 @@ path = "src/main.rs"
 name = "safc_web"
 path = "src/bin/web.rs"
 
-
 [lib]
 name = "safc"
 path = "src/lib.rs"
@@ -55,3 +54,7 @@ lazy_static = "1.4.0"
 dotenv = "0.15"
 env_logger = "0.10"
 pretty_env_logger = "0.5"
+
+
+[profile.release]
+lto = true
