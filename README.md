@@ -72,6 +72,10 @@
   <img src="https://contrib.rocks/image?repo=framist/SAFC-bot" />
 </a>
 
+## 赞助
+
+如果此项目对你有任何帮助，我们都倍感荣幸。你的⭐就是最大的鼓励和赞助 🌟✨
+
 ---
 
 ![GitHub](https://img.shields.io/github/license/framist/SAFC-bot?style=flat-square)

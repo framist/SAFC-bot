@@ -60,7 +60,7 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
         .unwrap()
         .unwrap();
 
-    return HttpResponse::Ok().json(db.find_comment(&obj_teacher.object_id).unwrap());
+    return HttpResponse::Ok().json(db.find_comment(&obj_teacher.object_id).unwrap());   // todo 这里需初步的格式化一下以显示嵌套评价
 }
 
 #[actix_web::main]
@@ -78,7 +78,7 @@ async fn main() -> io::Result<()> {
         App::new()
             .wrap(cors)
             .app_data(web::Data::new(db.clone()))
-            .wrap(middleware::Logger::default())
+            // .wrap(middleware::Logger::default())
             .service(hello)
             .service(api_query)
     })
