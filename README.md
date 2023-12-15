@@ -83,7 +83,7 @@
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/framist/SAFC-bot?style=flat-square)](https://github.com/framist/SAFC-bot/graphs/commit-activity)
 [![GitHub contributors](https://img.shields.io/github/contributors/framist/SAFC-bot?style=flat-square)](https://github.com/framist/SAFC-bot/graphs/contributors)
 ![GitHub Repo stars](https://img.shields.io/github/stars/framist/SAFC-bot?style=flat-square)
-
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fframist.github.io%2Fsafc%2F&count_bg=%23E83E8C&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=views&edge_flat=true)](https://hits.seeyoufarm.com)
 
 
 [框架科工](https://craft.framist.top/) | 致力为虚无的世间献上一点花火🔥
