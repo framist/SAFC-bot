@@ -20,7 +20,6 @@
         <h1>🏛️</h1>
         <h1>SAFC - Web</h1>
         <p>
-            <b>大学生反诈中心 web 端</b><br />
             <i>元平台、分布式——不只是评价导师</i><br />
             <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | -->
             Web（本站） |
@@ -121,27 +120,39 @@
         }
 
         function show_comments() {
+            commentsNumDiv.empty();
+            commentsNumDiv.append(`检索到 ${counts} 条评论`);
             contentDiv.empty();
             currentCm.forEach(function (value, i) {
                 var desc = value['description'].replace(/\n/g, "<br>");
-                var card = $(`<div class="card mb-3">
+                var card = $(`<div title="评论的回复请使用 tg bot 查看" class="card mb-3">
                 <div class="card-header">
                     <div class="row">
                         <div class="col">
-                            <b> ${i + 1} | ${currentSp} - <code>${value['object']}</code> </b>
+                            ${i + 1} > ${value['comment_type']} > <b>${currentSp}</b> > ${value['date']}
                         </div>
                         <div class="col" style="text-align: right;">
-                            <b>${value['comment_type']} | ${value['date']}</b>
+                            <small class="text-muted">
+                                <code>${value['object']}</code>
+                            </small>
                         </div>
                     </div>
                 </div>
                     <div class="card-body">
-                        <p class="card-title">来自 ${value['source_cate']} 的评价 - <code>${value['id']}</code></p>
-                        <!-- todo 增加来源说明的链接 -->
+                        <small class="text-muted">
+                            <div style="display: flex; justify-content: space-between;">
+                                <p title="这是鼠标提示的文本" class="card-title">
+                                    来自 ${value['source_cate']} 的评价
+                                </p>
+                                <p class="card-text"><code>${value['id']}</code></p>
+                            </div>
+                        </small>
+                        <!-- todo 增加来源说明的链接 <a href="https://github.com/framist/SAFC-bot/blob/main/script/crawlers/README.md">数据来源说明</a> -  -->
                         <p class="card-text">${desc}</p>
                         <div class="nest-descriptions">
                             <!-- todo 先直接在后端返回纯文本的结构得了 -->
                         </div>
+
                     </div>
                 </div >`);
                 if (currentUn == '西安电子科技大学') {
@@ -241,8 +252,6 @@
                 (d) => {
                     currentCm = d;
                     counts = currentCm.length;
-                    commentsNumDiv.empty();
-                    commentsNumDiv.append(`检索到 ${counts} 条评论`);
                     show_comments();
                 }
             );
