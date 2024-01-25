@@ -35,3 +35,11 @@ fn test_calc_object_id() {
         )
     )
 }
+
+#[test]
+fn test_hash_author_sign() {
+    assert_eq!(
+        "633d8c27f20896ab27a9c762d4e1e9da16b54edec78de13f3c950820aca70b7c".to_string(),
+        hash_author_sign(&"cba0415143b305c0".to_string(), &"201809".to_string())
+    )
+}
