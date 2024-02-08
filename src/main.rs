@@ -878,7 +878,7 @@ async fn add_comment(
         bot.send_message(
             msg.chat.id,
             format!(
-                "您对 `{}` 的评价是\n\
+                "您对 `{}` 的评价是\n\n\
                 ```\n{}\n```\n\
                 确认发布？如确认请输入「发布人 OTP」，之后将发布评价;\
                 取消请 /cancel  *您只能在此取消！*\n\
