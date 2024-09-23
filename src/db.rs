@@ -176,6 +176,7 @@ impl Default for SAFCdb {
 
 impl SAFCdb {
     pub fn new() -> Self {
+        // TODO 检查当前文件是否存在
         let db_path = std::env::var("SAFC_DB_PATH").unwrap_or_else(|_| {
             log::warn!("SAFC_DB_PATH 未设置，默认设置为：./db.sqlite");
             "db.sqlite".to_string()

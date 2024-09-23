@@ -159,9 +159,9 @@ async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message)
         "使用方法： \n\
             - /find <客体 | 评价> <关键字 1> [关键字...]\n\
             例如：\n\
-            - /find 客体 习__\n\
+            - /find 客体 赵__\n\
             - /find 评价 前途 无量\n\
-            可选的高级操作：\n\
+            客体的一般是导师的意思。就可选的高级操作：\n\
             - 您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
             您也可以使用 /start 中的功能按钮使用这些功能",
     )
@@ -259,8 +259,8 @@ async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerRe
             StartOp::FindSupervisor => {
                 let text = "请回复你要查找的 👔\n\
                     可选：您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
-                    例如：习__\n\
-                    也可以使用命令 /find 客体 习__\n";
+                    例如：赵__\n\
+                    此功能等效使用命令 /find 客体 赵__\n";
                 bot.send_message(dialogue.chat_id(), text).await?;
                 dialogue.update(State::FindSupervisor).await?;
             }
@@ -268,7 +268,7 @@ async fn start_cb(bot: Bot, dialogue: MyDialogue, q: CallbackQuery) -> HandlerRe
                 let text = "请回复你要查找的评价关键字，空格分隔\n\
                     可选：您可以用百分号（%）代表零个、一个或多个字符。下划线（_）代表一个单一的字符\n\n\
                     例如：前途 无量\n\
-                    也可以使用命令 /find 评价 前途 无量"; // todo
+                    此功能等效使用命令 /find 评价 前途 无量"; // todo
                 bot.send_message(dialogue.chat_id(), text).await?;
                 dialogue.update(State::FindComment).await?;
             }
@@ -882,7 +882,7 @@ async fn add_comment(
                 ```\n{}\n```\n\
                 确认发布？如确认请输入「发布人 OTP」，之后将发布评价;\
                 取消请 /cancel  *您只能在此取消！*\n\
-                _注：「发布人 OTP」是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论，\
+                _注：「发布人 OTP」即一次性密钥，是可以让您日后证明本评价由您发布，由此您可以修改/销毁此评论，\
                 如不需要，输入随机值即可_",
                 &object_id,
                 escape(comment.as_str())
