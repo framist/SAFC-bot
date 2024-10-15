@@ -58,7 +58,7 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
             &q.supervisor.unwrap(),
         )
         .unwrap()
-        .unwrap();
+        .unwrap(); // TODO thread 'actix-rt|system:0|arbiter:1' panicked at 'called `Option::unwrap()` on a `None` value', src/bin/web.rs:61:10
 
     return HttpResponse::Ok().json(db.find_comment(&obj_teacher.object_id).unwrap());   // todo 这里需初步的格式化一下以显示嵌套评价
 }

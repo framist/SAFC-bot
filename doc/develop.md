@@ -2,7 +2,7 @@
 
 ## telegram bot
 
-为了最高的性能和安全性，后端完全采用 Rust 开发。
+为了最高的性能和安全性，后端完全采用 Rust 开发。  
 
 1. Install [Rust].
 2. Setup your bot with [@botfather](https://t.me/botfather).
@@ -11,10 +11,32 @@
    ```sh
    export TELOXIDE_TOKEN=<BOT TOKEN e.g. 123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ>
    export TELOXIDE_PROXY=<PROXY e.g. http://127.0.0.1:7890>
+   export SAFC_DB_PATH=<DATABASE PATH e.g. /path/to/safc.db>
    ```
 5. Run `cargo run` from the repository directory.
 6. Send a message to your bot with `/start` command.
 7. Enjoy!
+
+作为系统服务运行参考：
+
+```toml
+[Unit]
+Description=SAFC Bot Service
+After=network.target
+
+[Service]
+Environment="https_proxy=http://127.0.0.1:7890"
+Environment="http_proxy=http://127.0.0.1:7890"
+Environment="TELOXIDE_TOKEN=123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+Environment="TELOXIDE_PROXY=http://127.0.0.1:7890"
+Environment="SAFC_DB_PATH=/path/to/db.sqlite"
+ExecStart=/path/to/safc_bot
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
 
 ## web
 
@@ -26,7 +48,7 @@
 
 ### 数据库 `db`
 
-数据库需要完全彻底的重构，但具体的实现方案仍未设计好。重新设计的数据库需满足去中心化的特征。
+数据库需要完全彻底的重构，但具体的实现方案仍未妥善设计。重新设计的数据库需满足去中心化的特征。
 
 ### 加密与安全 `sec`
 

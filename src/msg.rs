@@ -47,7 +47,8 @@ impl ToString for TgResponse {
             Self::Hello => concat!(
                 "👋 嗨！我是大学生反诈中心（SAFC @SAFC\\_group）的客服机器人\n",
                 "_目前仍为早期开发版本_ 问题敬请反馈；*越墙不易，延迟丢包敬请见谅*\n",
-                "您可以发送 /cancel 来停止此次对话\n\n",
+                "您可以发送 /cancel 来停止此次对话；",
+                "发送 /info 了解反诈中心\n",
                 "您可以先查询客体（一般来讲客体就是导师啦），然后查看或发起对客体的评价。\n\n",
                 "请选择以下功能之一：",
             )
@@ -193,7 +194,7 @@ impl From<String> for ObjectOp {
 pub fn start_op_keyboard() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new([
         vec![InlineKeyboardButton::callback(
-            "🌳 开始查询 & 评价！",
+            "🌳 开始查询 & 评价（荐）",
             StartOp::Tree,
         )],
         vec![
