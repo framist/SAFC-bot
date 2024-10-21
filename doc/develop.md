@@ -73,7 +73,9 @@ WantedBy=multi-user.target
   - [ ] logo
 - db
   - [ ] **使用更现代化的 sql 范式**
-  - [ ] **定时备份、发布数据库**
+  - [ ] **定时备份、发布数据库** 在 SAFC 官方 tg 群中
+  - [ ] web 端 bot 端均能下载数据库
+  - [ ] 数据库版本管理、合并与更新
 - tg bot 功能
   - [x] `/start` 重构 —— 作为功能指引
   - [x] 嵌套评价
@@ -89,6 +91,9 @@ WantedBy=multi-user.target
   - [x] 静态网页 demo
     - [ ] GitHub Pages CD
   - [ ] 完整功能
+    - [ ] 欢迎页
+    - [ ] 提供多格式数据库下载
+    - [ ] 提供一些实用工具
 - 更多平台
   - [ ] 浏览器插件 方便地加入导师相关评价
   - [ ] **Discord、matrix 等更多社群平台**
@@ -97,6 +102,7 @@ WantedBy=multi-user.target
   - [ ] CI CD 自动部署
 - 数据
   - [ ] wiki 形式的客体基本信息
+  - [ ] `tmp_from_tg` 数据待录入
 - 文档
   - [ ] 开发文档
   - [ ] 使用文档，包括导师评价规范、隐私目的的文字指导、社区公约等
