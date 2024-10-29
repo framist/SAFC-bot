@@ -129,26 +129,22 @@ async fn info_command(bot: Bot, msg: Message) -> HandlerResult {
 }
 
 async fn download_db_command(bot: Bot, msg: Message) -> HandlerResult {
-    let db_path = Path::new("db.sqlite");
+    let db_path = SAFC_DB.get_db_path();
 
-    if db_path.exists() {
-        // 发送 "正在上传数据库..." 消息
-        bot.send_message(msg.chat.id, "正在上传数据库...").await?;
+    // 发送 "正在上传数据库..." 消息
+    bot.send_message(msg.chat.id, "正在上传数据库...").await?;
 
-        // 上传数据库文件
-        let file = InputFile::file(db_path);
-        match bot.send_document(msg.chat.id, file).await {
-            Ok(_) => {
-                bot.send_message(msg.chat.id, "数据库文件已成功上传。")
-                    .await?;
-            }
-            Err(err) => {
-                bot.send_message(msg.chat.id, format!("上传数据库文件时出错: {}", err))
-                    .await?;
-            }
+    // 上传数据库文件
+    let file = InputFile::file(db_path);
+    match bot.send_document(msg.chat.id, file).await {
+        Ok(_) => {
+            bot.send_message(msg.chat.id, "数据库文件已成功上传。")
+                .await?;
         }
-    } else {
-        bot.send_message(msg.chat.id, "数据库文件不存在。").await?;
+        Err(err) => {
+            bot.send_message(msg.chat.id, format!("上传数据库文件时出错：{}", err))
+                .await?;
+        }
     }
 
     Ok(())
