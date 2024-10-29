@@ -157,12 +157,14 @@ impl ObjComment {
 }
 
 pub struct SAFCdb {
+    db_path: String,
     pool: Pool,
 }
 
 impl Clone for SAFCdb {
     fn clone(&self) -> Self {
         Self {
+            db_path: self.db_path.clone(),
             pool: self.pool.clone(),
         }
     }
@@ -186,9 +188,13 @@ impl SAFCdb {
     }
 
     pub fn new_with_path(db_path: String) -> Self {
-        let manager = SqliteConnectionManager::file(db_path);
+        let manager = SqliteConnectionManager::file(db_path.clone());
         let pool = Pool::new(manager).unwrap();
-        SAFCdb { pool }
+        SAFCdb { db_path, pool }
+    }
+
+    pub fn get_db_path(&self) -> String {
+        self.db_path.clone()
     }
 
     pub fn find_school_cate(&self) -> HandlerResult<Vec<String>> {
