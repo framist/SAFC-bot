@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use safc::db::*;
 use safc::sec::*;
 
@@ -5,6 +7,7 @@ use safc::sec::*;
 mod msg;
 use msg::*;
 
+use teloxide::types::InputFile;
 use teloxide::{
     dispatching::{dialogue, dialogue::InMemStorage, UpdateHandler},
     prelude::*,
@@ -33,6 +36,8 @@ enum Command {
     Cancel,
     #[command(description = "信息")]
     Info,
+    #[command(description = "下载数据库")]
+    DownloadDb,
     #[command(description = "评价")]
     Comment(String),
     #[command(description = "搜索")]
@@ -70,6 +75,7 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(case![Command::Help].endpoint(help_command))
         .branch(case![Command::Cancel].endpoint(cancel_command))
         .branch(case![Command::Info].endpoint(info_command))
+        .branch(case![Command::DownloadDb].endpoint(download_db_command))
         .branch(case![Command::Find(arg)].endpoint(find_command))
         .branch(case![Command::Comment(arg)].endpoint(comment_command))
         .branch(dptree::endpoint(invalid_command));
@@ -119,6 +125,32 @@ async fn info_command(bot: Bot, msg: Message) -> HandlerResult {
         .reply_to_message_id(msg.id)
         .parse_mode(MarkdownV2)
         .await?;
+    Ok(())
+}
+
+async fn download_db_command(bot: Bot, msg: Message) -> HandlerResult {
+    let db_path = Path::new("db.sqlite");
+
+    if db_path.exists() {
+        // 发送 "正在上传数据库..." 消息
+        bot.send_message(msg.chat.id, "正在上传数据库...").await?;
+
+        // 上传数据库文件
+        let file = InputFile::file(db_path);
+        match bot.send_document(msg.chat.id, file).await {
+            Ok(_) => {
+                bot.send_message(msg.chat.id, "数据库文件已成功上传。")
+                    .await?;
+            }
+            Err(err) => {
+                bot.send_message(msg.chat.id, format!("上传数据库文件时出错: {}", err))
+                    .await?;
+            }
+        }
+    } else {
+        bot.send_message(msg.chat.id, "数据库文件不存在。").await?;
+    }
+
     Ok(())
 }
 
@@ -489,12 +521,15 @@ async fn choose_department_msg(
     bot: &Bot,
     msg: &Message,
 ) -> HandlerResult {
+    // 获取学院列表并转换为单列键盘布局
     let keyboard = convert_to_n_columns_keyboard(SAFC_DB.find_department(s_c, university)?, 1);
     bot.send_message(
         msg.chat.id,
         format!("🧭 {s_c} 🏫 {university}\n您想查询的「学院」是："),
     )
+    // 添加自定义键盘，增强用户交互
     .reply_markup(KeyboardMarkup::new(keyboard).input_field_placeholder("学院？".to_string()))
+    // 将此消息设置为对原始消息的回复，增强对话的上下文关联
     .reply_to_message_id(msg.id)
     .await?;
     Ok(())
