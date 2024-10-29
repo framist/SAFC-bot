@@ -4,7 +4,7 @@
 use actix_cors::Cors;
 use actix_web::http::header;
 use actix_web::{get, Responder};
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{web, App, HttpResponse, HttpServer};
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -92,7 +92,7 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
         .unwrap()
         .unwrap(); // TODO thread 'actix-rt|system:0|arbiter:1' panicked at 'called `Option::unwrap()` on a `None` value', src/bin/web.rs:61:10
 
-    return HttpResponse::Ok().json(db.find_comment(&obj_teacher.object_id).unwrap());
+    HttpResponse::Ok().json(db.find_comment(&obj_teacher.object_id).unwrap())
     // todo 这里需初步的格式化一下以显示嵌套评价
 }
 
