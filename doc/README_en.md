@@ -5,7 +5,7 @@
   <b>🧪 in developing but already in servering!</b><br/>
   <i>Meta & decentralization -- not just reviewing supervisor</i><br/>
   <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | --> 
-  <a href="https://framist.github.io/safc">Website</a> |
+  <a href="https://safc-web.vercel.app/">Website</a> |
   <a href="https://t.me/SAFC_bak_bot">Telegram Bot</a> |
   <a href="https://t.me/SAFC_group">Telegram Group</a><br/> 
 </div>

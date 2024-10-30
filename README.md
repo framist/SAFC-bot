@@ -5,19 +5,13 @@
   <b>🧪 in developing but already in servering!</b><br/>
   <i>元平台、弱中心 —— 不只是评价导师</i><br/>
   <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | --> 
-  <a href="https://framist.github.io/safc">网页端</a> |
+  <a href="https://safc-web.vercel.app/">网页端</a> |
   <a href="https://t.me/SAFC_bak_bot">Telegram 机器人</a> |
   <a href="https://t.me/SAFC_group">群组社区</a><br/> 
 </div>
 
 
-[使用指南](./doc/usage.md) | [English](./doc/README_en.md)
-
-<details>
-<summary>Demo</summary>
-<img src="./assets/bot_demo.png">
-</details>
-
+[使用指南](doc/usage.md) | [English](doc/README_en.md)
 
 ## 背景
 
@@ -31,17 +25,17 @@
 
 为了最大保护信息安全与隐私，大学生反诈中心（SAFC）基于 Telegram 平台，包含以下功能
 
-* [Web 端](https://framist.github.io/safc)，只包括基本和静态的功能
-* Telegram 机器人 ~~[@SAFC_bot](https://t.me/SAFC_bot)~~ [@SAFC_bak_bot](https://t.me/SAFC_bak_bot) —— 学校、专业、学院、课程、导师的交叉评价与查询
+* [Web 端](doc/usage.md#web-端列表)，只包括基本和静态的功能
+* [Telegram 机器人](doc/usage.md#telegram-bot-列表) —— 学校、专业、学院、课程、导师的交叉评价与查询
 * Telegram 群组社区 [@SAFC_group](https://t.me/SAFC_group) —— 公告与交流平台
 
 本平台的长期目标：
 
-* _出发_：共享，开放，自由的精神；我为人人，人人为我的理念。
+* _出发_：共享，开放，自由的精神；我为人人，人人为我的理念。[社群共识](doc/community.md)
 * _开源_：SAFC 的功能与基础设施将保证**永远免费，数据、代码开源**。源代码也必须是可读的，这样用户就可以理解系统真正在做什么，并更容易地扩展它。
 * _技术_：密码朋克，尽可能地做好隐私保护、数据与人身安全；数据共享代码开源，相互监督共进；**未来预计实现去中心化，每个人都能建立起新的节点**。
 * _定位_：综合大学生所需要的功能，不光包括最基本的导师评价和查询功能，还能对学校、专业、学院、课程、学生、已有的评价进行评价；另外提供一个交流平台。
-* _元平台_：**引用综合其他相似平台与相似数据**。[详细](./doc/meta.md)
+* _元平台_：**引用综合其他相似平台与相似数据**。[详细](doc/meta.md)
 * _价值观_：不审核把控评价，因为每个评价必有片面主观的地方。只有评价，没有评分，每个客体都不能由单独的分数来决定。
 
 ## 隐私
@@ -60,11 +54,11 @@
 
 ## 参考
 
-使用的数据来源、同类网站调查参见 [reference.md](./doc/reference.md) 
+使用的数据来源、同类网站调查参见 [reference.md](doc/reference.md) 
 
 ## 开发
 
-期待您的加入！项目构成、开发参考、未来的开发计划参见 [develop.md](./doc/develop.md)；项目更新日志见 [CHANGELOG.md](./CHANGELOG.md)。
+期待您的加入！项目构成、开发参考、未来的开发计划参见 [develop.md](doc/develop.md)；项目更新日志见 [CHANGELOG.md](CHANGELOG.md)。
 
 感谢每一个为此项目贡献过源码的同志：
 
