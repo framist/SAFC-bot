@@ -2,18 +2,32 @@
 //!
 
 use actix_cors::Cors;
-use actix_web::http::header;
-use actix_web::{get, Responder};
+use actix_web::body::BoxBody;
+use actix_web::http::{header, StatusCode};
+use actix_web::{get, post, Responder};
 use actix_web::{web, App, HttpResponse, HttpServer};
 use dotenv::dotenv;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::PathBuf;
+use std::sync::Mutex;
 
+use actix_governor::{Governor, GovernorConfigBuilder};
+use actix_web::{
+    dev::{ServiceRequest, ServiceResponse},
+    middleware::{from_fn, Next},
+    Error,
+};
 use safc::db::*;
-
 const PORT: u16 = 11096;
+const MAX_POST_PER_DAY: u64 = 20; // 每IP每天最多20次POST请求
+
+lazy_static! {
+    static ref BLOCK_DB: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ApiQuery {
@@ -21,6 +35,15 @@ struct ApiQuery {
     university: Option<String>,
     department: Option<String>,
     supervisor: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CreateCommentReq {
+    school_cate: String,
+    university: String,
+    department: String,
+    supervisor: String,
+    content: String,
 }
 
 #[get("/api")]
@@ -96,6 +119,89 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
     // todo 这里需初步的格式化一下以显示嵌套评价
 }
 
+#[post("/api/new/comment")]
+async fn new_comment(db: web::Data<SAFCdb>, form: web::Json<CreateCommentReq>) -> HttpResponse {
+    let exist_teacher =
+        db.find_object_with_path(&form.university, &form.department, &form.supervisor);
+    if exist_teacher.is_err() {
+        return HttpResponse::InternalServerError().json(exist_teacher.err().unwrap().to_string());
+    }
+
+    // 需要先检查这个教师实体是否存在
+    let teacher;
+
+    match exist_teacher.unwrap() {
+        Some(t) => {
+            teacher = t;
+        }
+        None => {
+            // 需要创建实体
+            let date = get_current_date();
+            let object_id = hex::encode(
+                &sha256::digest(format!("{}{}", form.university, form.supervisor).as_bytes())[..16],
+            );
+
+            teacher = ObjTeacher {
+                school_cate: form.school_cate.clone(),
+                university: form.university.clone(),
+                department: form.department.clone(),
+                supervisor: form.supervisor.clone(),
+                date,
+                info: None,
+                object_id,
+            };
+            if let Err(e) = db.add_object(&teacher) {
+                return HttpResponse::InternalServerError().json(e.to_string());
+            }
+        }
+    }
+
+    let obj_comment = ObjComment::new_with_otp(
+        teacher.object_id,
+        form.content.clone(),
+        SourceCate::Web,
+        CommentType::Teacher,
+        "".to_string(), // TODO: 需要 OTP
+    );
+
+    match db.add_comment(&obj_comment) {
+        Ok(_) => HttpResponse::Ok().json("评论成功"),
+        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+    }
+}
+
+async fn block_middleware(
+    req: ServiceRequest,
+    next: Next<BoxBody>,
+) -> Result<ServiceResponse<BoxBody>, Error> {
+    let headers = req.headers();
+    let method = req.method();
+
+    if method == actix_web::http::Method::POST {
+        let origin_addr = headers.get("origin").and_then(|h| h.to_str().ok());
+        let mut block_guard = BLOCK_DB.lock().unwrap();
+
+        match origin_addr {
+            Some(addr) => {
+                let count = block_guard.entry(addr.to_string()).or_insert(0);
+                *count += 1;
+                if *count > MAX_POST_PER_DAY {
+                    println!("限流: count:{}, origin:{}", *count, addr);
+                    let response = HttpResponse::build(StatusCode::TOO_MANY_REQUESTS)
+                        .body("超过每日Post请求次数限制");
+                    return Ok(req.into_response(response.map_into_boxed_body()));
+                }
+            }
+            None => {
+                let response = HttpResponse::BadRequest().body("\"origin\"字段必须存在");
+                return Ok(req.into_response(response.map_into_boxed_body()));
+            }
+        }
+    }
+
+    next.call(req).await
+}
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
@@ -107,6 +213,13 @@ async fn main() -> io::Result<()> {
 
     // start HTTP server
     HttpServer::new(move || {
+        // 限流配置：每个 IP 每分钟最多 60 次请求
+        let governor_conf = GovernorConfigBuilder::default()
+            .per_second(20) // 每秒请求数
+            .burst_size(60) // 突发请求上限
+            .finish()
+            .unwrap();
+
         let cors = Cors::default()
             .allow_any_origin() // 允许任何源
             .allow_any_method() // 允许任何 HTTP 方法
@@ -115,12 +228,14 @@ async fn main() -> io::Result<()> {
             .max_age(3600); // 预检请求的缓存时间
 
         App::new()
+            .wrap(from_fn(block_middleware))
             .wrap(cors)
+            .wrap(Governor::new(&governor_conf)) // 添加限流中间件
             .app_data(web::Data::new(db.clone()))
-            // .wrap(middleware::Logger::default())
             .service(hello)
             .service(api_query)
-            .service(download_file) // 添加数据库下载服务
+            .service(download_file)
+            .service(new_comment)
     })
     .bind(("127.0.0.1", PORT))?
     .run()
