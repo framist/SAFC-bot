@@ -23,6 +23,8 @@ use actix_web::{
     Error,
 };
 use safc::db::*;
+use safc::sec;
+
 const PORT: u16 = 11096;
 const MAX_POST_PER_DAY: u64 = 20; // 每 IP 每天最多 20 次 POST 请求
 
@@ -127,42 +129,40 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
 #[post("/api/new/comment")]
 async fn new_comment(db: web::Data<SAFCdb>, form: web::Json<CreateCommentReq>) -> HttpResponse {
     let exist_teacher =
-        db.find_object_with_path(&form.university, &form.department, &form.supervisor);
-    if exist_teacher.is_err() {
-        return HttpResponse::InternalServerError().json(exist_teacher.err().unwrap().to_string());
-    }
-
-    // 需要先检查这个教师实体是否存在
-    let teacher;
-
-    match exist_teacher.unwrap() {
-        Some(t) => {
-            teacher = t;
-        }
-        None => {
-            // 需要创建实体
-            let date = get_current_date();
-            let object_id = hex::encode(
-                &sha256::digest(format!("{}{}", form.university, form.supervisor).as_bytes())[..16],
-            );
-
-            teacher = ObjTeacher {
-                school_cate: form.school_cate.clone(),
-                university: form.university.clone(),
-                department: form.department.clone(),
-                supervisor: form.supervisor.clone(),
-                date,
-                info: None,
-                object_id,
-            };
-            if let Err(e) = db.add_object(&teacher) {
+        match db.find_object_with_path(&form.university, &form.department, &form.supervisor) {
+            Err(e) => {
                 return HttpResponse::InternalServerError().json(e.to_string());
             }
-        }
-    }
+            Ok(o) => match o {
+                Some(t) => t,
+                None => {
+                    // 需要创建实体
+                    let date = get_current_date();
+                    let school_cate = form.school_cate.clone();
+                    let university = form.university.clone();
+                    let department = form.department.clone();
+                    let supervisor = form.supervisor.clone();
+                    let object_id = sec::hash_object_id(&university, &department, &supervisor);
+
+                    let teacher = ObjTeacher {
+                        school_cate,
+                        university,
+                        department,
+                        supervisor,
+                        date,
+                        info: None,
+                        object_id,
+                    };
+                    if let Err(e) = db.add_object(&teacher) {
+                        return HttpResponse::InternalServerError().json(e.to_string());
+                    };
+                    teacher
+                }
+            },
+        };
 
     let obj_comment = ObjComment::new_with_otp(
-        teacher.object_id,
+        exist_teacher.object_id,
         form.content.clone(),
         SourceCate::Web,
         CommentType::Teacher,
