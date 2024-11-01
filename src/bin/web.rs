@@ -6,7 +6,7 @@ use actix_web::http::{header, StatusCode};
 use actix_web::rt;
 use actix_web::{get, post, Responder};
 use actix_web::{web, App, HttpResponse, HttpServer};
-use dotenv::dotenv;
+
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -24,7 +24,7 @@ use actix_web::{
 };
 use safc::db::*;
 const PORT: u16 = 11096;
-const MAX_POST_PER_DAY: u64 = 20; // 每IP每天最多20次POST请求
+const MAX_POST_PER_DAY: u64 = 20; // 每 IP 每天最多 20 次 POST 请求
 
 lazy_static! {
     static ref BLOCK_DB: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
@@ -107,15 +107,19 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
             .unwrap(),
         );
     }
-    let obj_teacher = db
+    let obj_teacher = match db
         .find_object_with_path(
             &q.university.unwrap(),
             &q.department.unwrap(),
             &q.supervisor.unwrap(),
         )
         .unwrap()
-        .unwrap(); // TODO thread 'actix-rt|system:0|arbiter:1' panicked at 'called `Option::unwrap()` on a `None` value', src/bin/web.rs:61:10
-
+    {
+        Some(t) => t,
+        None => {
+            return HttpResponse::NotFound().json("教师信息未找到");
+        }
+    };
     HttpResponse::Ok().json(db.find_comment(&obj_teacher.object_id).unwrap())
     // todo 这里需初步的格式化一下以显示嵌套评价
 }
@@ -187,9 +191,9 @@ async fn block_middleware(
                 let count = block_guard.entry(addr.to_string()).or_insert(0);
                 *count += 1;
                 if *count > MAX_POST_PER_DAY {
-                    log::info!("限流: count:{}, origin:{}", *count, addr);
+                    log::info!("限流：count:{}, origin:{}", *count, addr);
                     let response = HttpResponse::build(StatusCode::TOO_MANY_REQUESTS)
-                        .body("超过每日Post请求次数限制");
+                        .body("超过每日 Post 请求次数限制");
                     return Ok(req.into_response(response.map_into_boxed_body()));
                 }
             }
@@ -207,7 +211,7 @@ async fn block_middleware(
 async fn clean_block_db() {
     log::info!("clean_block_db 启动");
     loop {
-        // 每天0点清理一次
+        // 每天 0 点清理一次
         tokio::time::sleep(Duration::from_secs(24 * 60 * 60)).await;
         if let Ok(mut guard) = BLOCK_DB.lock() {
             guard.clear();
