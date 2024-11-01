@@ -42,7 +42,7 @@ WantedBy=multi-user.target
 
 目前：完全前后端分离，前端使用完全静态的界面，后端只提供 API
 
-前端使用 `next.js` 开发，采用`git submodule`的方式集成, `submodule`路径为[web](../web), 仓库为 [safc-web](https://github.com/ToniXWD/safc-web)
+前端使用 `next.js` 开发，采用`git submodule`的方式集成，`submodule`路径为[web](../web), 仓库为 [safc-web](https://github.com/ToniXWD/safc-web)
 
 ## 核心库 `lib`
 
@@ -97,6 +97,7 @@ WantedBy=multi-user.target
     - [ ] 提供多格式数据库下载
       - [x] 提供`sqlite`文件下载的功能
     - [ ] 提供一些实用工具
+  - [ ] 可用网页列表与存活性检查
 - 更多平台
   - [ ] 浏览器插件 方便地加入导师相关评价
   - [ ] **Discord、matrix 等更多社群平台**

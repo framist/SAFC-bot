@@ -18,7 +18,7 @@ lazy_static! {
 pub const MSG_MAX_PAGES: usize = 99;
 
 const GITHUB_URL: &str = "https://github.com/framist/SAFC-bot";
-const WEB_URL: &str = "https://framist.github.io/safc";
+const WEB_URL: &str = "https://safc-web.vercel.app/";
 const BOT_INFO: &str = r"*大学生反诈中心*
 
 _元平台，分布式_
@@ -29,6 +29,7 @@ _元平台，分布式_
 *telegram 机器人* ~@SAFC\_bot~ @SAFC\_bak\_bot —— 学校、专业、学院、课程、导师的交叉评价与查询
 *telegram 群组社区* @SAFC\_group —— 公告与交流平台
 
+[Web 端使用](https://safc-web.vercel.app/) 
 [GitHub 项目主页](https://github.com/framist/SAFC-bot)
 ";
 

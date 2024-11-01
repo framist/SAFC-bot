@@ -256,6 +256,33 @@
                 }
             );
         })
+
+        $(document).ready(function() {
+            // 创建自定义对话框
+            var dialog = $('<div id="customDialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;' +
+                          'background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center;">' +
+                          '<div style="background: white; padding: 20px; border-radius: 5px; text-align: center;">' +
+                          '<p>🏄 是否保留在旧版网页冲浪？<span id="countdown">5</span> 秒后将自动跳转到新版网页。</p>' +
+                          '<button id="stayButton">保留</button>' +
+                          '</div></div>');
+            $('body').append(dialog);
+        
+            var count = 5;
+            var countdownElement = $('#countdown');
+            var interval = setInterval(function() {
+                count--;
+                countdownElement.text(count);
+                if (count <= 0) {
+                    clearInterval(interval);
+                    window.location.href = "https://safc-web.vercel.app/";
+                }
+            }, 1000);
+        
+            $('#stayButton').on('click', function() {
+                clearInterval(interval);
+                $('#customDialog').remove();
+            });
+        });
     </script>
 </body>
 

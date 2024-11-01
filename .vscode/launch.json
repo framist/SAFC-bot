@@ -1,0 +1,87 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Cargo launch",
+            "cargo": {
+                "args": [
+                    "build",
+                ]
+            },
+            "args": []
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'safc_bot'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=safc_bot",
+                    "--package=safc"
+                ],
+                "filter": {
+                    "name": "safc_bot",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                // "user_arg1",
+                // "user_arg2"
+            ],
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env", // e.g. TELOXIDE_TOKEN, TELOXIDE_PROXY ...
+            "env": {
+                "RUST_LOG": "debug",
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'safc_web'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=safc_web",
+                    "--package=safc"
+                ],
+                "filter": {
+                    "name": "safc_web",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                // "user_arg1",
+                // "user_arg2"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "RUST_LOG": "debug",
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'safc_bot'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=safc_bot",
+                    "--package=safc_bot"
+                ],
+                "filter": {
+                    "name": "safc_bot",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
