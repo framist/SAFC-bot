@@ -1,5 +1,7 @@
-.vscode
+# 机要信息
+.env
 
+# 数据文件及临时文件
 db.sqlite
 comments_data.json
 tmp/
