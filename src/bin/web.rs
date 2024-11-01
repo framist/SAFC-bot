@@ -1,9 +1,9 @@
 //! 目前为 demo 阶段，只是为了验证可行性
 //!
-
 use actix_cors::Cors;
 use actix_web::body::BoxBody;
 use actix_web::http::{header, StatusCode};
+use actix_web::rt;
 use actix_web::{get, post, Responder};
 use actix_web::{web, App, HttpResponse, HttpServer};
 use dotenv::dotenv;
@@ -14,6 +14,7 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{
@@ -186,7 +187,7 @@ async fn block_middleware(
                 let count = block_guard.entry(addr.to_string()).or_insert(0);
                 *count += 1;
                 if *count > MAX_POST_PER_DAY {
-                    println!("限流: count:{}, origin:{}", *count, addr);
+                    log::info!("限流: count:{}, origin:{}", *count, addr);
                     let response = HttpResponse::build(StatusCode::TOO_MANY_REQUESTS)
                         .body("超过每日Post请求次数限制");
                     return Ok(req.into_response(response.map_into_boxed_body()));
@@ -202,11 +203,25 @@ async fn block_middleware(
     next.call(req).await
 }
 
+// 定期清理哈希表的函数
+async fn clean_block_db() {
+    log::info!("clean_block_db 启动");
+    loop {
+        // 每天0点清理一次
+        tokio::time::sleep(Duration::from_secs(24 * 60 * 60)).await;
+        if let Ok(mut guard) = BLOCK_DB.lock() {
+            guard.clear();
+            log::info!("已清理访问计数器");
+        }
+    }
+}
+
 #[actix_web::main]
 async fn main() -> io::Result<()> {
-    dotenv().ok();
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     log::info!("Starting SAFT web server at PORT{} ... by Framecraft", PORT);
+
+    // 启动清理任务
+    rt::spawn(clean_block_db());
 
     // connect to SQLite DB
     let db = SAFCdb::new();
