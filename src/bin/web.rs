@@ -222,6 +222,9 @@ async fn clean_block_db() {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
+    // 初始化日志库
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    
     log::info!("Starting SAFT web server at PORT{} ... by Framecraft", PORT);
 
     // 启动清理任务
