@@ -224,7 +224,7 @@ async fn clean_block_db() {
 async fn main() -> io::Result<()> {
     // 初始化日志库
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    
+
     log::info!("Starting SAFT web server at PORT{} ... by Framecraft", PORT);
 
     // 启动清理任务
@@ -235,10 +235,11 @@ async fn main() -> io::Result<()> {
 
     // start HTTP server
     HttpServer::new(move || {
-        // 限流配置：每个 IP 每分钟最多 60 次请求
+        // 限流配置：每个 IP 每分钟最多 1000 次请求
         let governor_conf = GovernorConfigBuilder::default()
-            .per_second(20) // 每秒请求数
-            .burst_size(60) // 突发请求上限
+            // TODO: 这些参数最好从配置文件获取，目前只是临时设置的
+            .per_second(100) // 每秒请求数提高到 100
+            .burst_size(1000) // 突发请求上限提高到 1000
             .finish()
             .unwrap();
 
