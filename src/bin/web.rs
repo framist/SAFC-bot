@@ -1,5 +1,24 @@
-//! 目前为 demo 阶段，只是为了验证可行性
+//! # SAFC 的 Web 服务后端
 //!
+//! ## 相关部署方式参考
+//!
+//! nginx 反向代理示例配置：
+//!
+//! ```nginx
+//! server {
+//!     server_name safc.example.com;   # <- 请替换为你的域名
+//!     client_max_body_size 50m;
+//!     location / {
+//!         proxy_pass       http://127.0.0.1:11096;
+//!         proxy_set_header Host      $host;
+//!         proxy_set_header X-Real-IP $remote_addr;
+//!         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+//!         proxy_set_header X-Forwarded-Proto $scheme;
+//!     }
+//! }
+//! ```
+//!
+
 use actix_cors::Cors;
 use actix_web::body::BoxBody;
 use actix_web::http::{header, StatusCode};
@@ -183,24 +202,27 @@ async fn block_middleware(
     let method = req.method();
 
     if method == actix_web::http::Method::POST {
-        let origin_addr = headers.get("origin").and_then(|h| h.to_str().ok());
+        // 从 X-Real-IP 获取原始 IP
+        let client_ip = headers
+            .get("X-Real-IP")
+            .or_else(|| headers.get("X-Forwarded-For")) // 回退到 X-Forwarded-For
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("unknown");
+
         let mut block_guard = BLOCK_DB.lock().unwrap();
 
-        match origin_addr {
-            Some(addr) => {
-                let count = block_guard.entry(addr.to_string()).or_insert(0);
-                *count += 1;
-                if *count > MAX_POST_PER_DAY {
-                    log::info!("限流：count:{}, origin:{}", *count, addr);
-                    let response = HttpResponse::build(StatusCode::TOO_MANY_REQUESTS)
-                        .body("超过每日 Post 请求次数限制");
-                    return Ok(req.into_response(response.map_into_boxed_body()));
-                }
-            }
-            None => {
-                let response = HttpResponse::BadRequest().body("\"origin\"字段必须存在");
+        if client_ip != "unknown" {
+            let count = block_guard.entry(client_ip.to_string()).or_insert(0);
+            *count += 1;
+            if *count > MAX_POST_PER_DAY {
+                log::info!("限流：count:{}, ip:{}", *count, client_ip);
+                let response = HttpResponse::build(StatusCode::TOO_MANY_REQUESTS)
+                    .body("超过每日 Post 请求次数限制");
                 return Ok(req.into_response(response.map_into_boxed_body()));
             }
+        } else {
+            let response = HttpResponse::BadRequest().body("无法获取客户端 IP");
+            return Ok(req.into_response(response.map_into_boxed_body()));
         }
     }
 
