@@ -18,6 +18,8 @@ pub fn hash_comment_id(object_id: &String, comment: &String, date: &String) -> S
     hex::encode(&Sha256::digest(s.as_bytes())[..8])
 }
 
+/// 作者签名 = sha256( 评论 id | sha256( "SAFC_salt" + otp ) )
+/// TODO opt 为空时视为放弃签名
 pub fn hash_author_sign(comment_id: &String, otp: &String) -> String {
     const SAFC_ASLT: &str = "SAFC_salt";
     let a = hex::encode(Sha256::digest(format!("{}{}", SAFC_ASLT, otp).as_bytes()));
