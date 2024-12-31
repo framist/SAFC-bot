@@ -1,7 +1,16 @@
+![GitHub](https://img.shields.io/github/license/framist/SAFC-bot?style=flat-square)
+![GitHub Created At](https://img.shields.io/github/created-at/framist/SAFC-bot?style=flat-square&color=lightgrey)
+![GitHub Repo stars](https://img.shields.io/github/stars/framist/SAFC-bot?style=flat-square)
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fframist.github.io%2Fsafc%2F&count_bg=%23E83E8C&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=views&edge_flat=true)](https://hits.seeyoufarm.com)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/framist/SAFC-bot/ci.yml?branch=main&style=flat-square)](https://github.com/framist/SAFC-bot/actions)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/y/framist/SAFC-bot?style=flat-square)](https://github.com/framist/SAFC-bot/graphs/commit-activity)
+[![GitHub contributors](https://img.shields.io/github/contributors/framist/SAFC-bot?style=flat-square)](https://github.com/framist/SAFC-bot/graphs/contributors)
+
+
+
+
 <div align="center">
-  <h1>🏛️</h1>
-  <!-- <img width="150" heigth="150" src="./doc/asserts/icon.png"> -->
-  <h1>SAFC</h1>
+  <h1>🏛️<br/>SAFC</h1>
   <b>🧪 in developing but already in servering!</b><br/>
   <i>元平台、弱中心 —— 不只是评价导师</i><br/>
   <!-- <a href="https://t.me/SAFC_bot"><del>Telegram 机器人</del></a> | --> 
@@ -12,14 +21,7 @@
 
 
 
-[使用指南](doc/usage.md) | [English](doc/README_en.md) | 
-![GitHub](https://img.shields.io/github/license/framist/SAFC-bot?style=flat-square)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/framist/SAFC-bot/ci.yml?branch=main&style=flat-square)](https://github.com/framist/SAFC-bot/actions)
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/framist/SAFC-bot?style=flat-square)](https://github.com/framist/SAFC-bot/graphs/commit-activity)
-[![GitHub contributors](https://img.shields.io/github/contributors/framist/SAFC-bot?style=flat-square)](https://github.com/framist/SAFC-bot/graphs/contributors)
-![GitHub Repo stars](https://img.shields.io/github/stars/framist/SAFC-bot?style=flat-square)
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fframist.github.io%2Fsafc%2F&count_bg=%23E83E8C&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=views&edge_flat=true)](https://hits.seeyoufarm.com)
- · *since 2024 summer*
+[使用指南](doc/usage.md) | [English](doc/README_en.md)
 
 ## 背景
 
@@ -79,5 +81,7 @@
 如果此项目对你有任何帮助，我们都倍感荣幸。你的⭐就是最大的鼓励和赞助 🌟✨
 
 ---
+
+
 
 [框架科工](https://craft.framist.top/) | 致力为虚无的世间献上一点花火🔥
