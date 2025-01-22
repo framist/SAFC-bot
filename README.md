@@ -1,4 +1,3 @@
-[<img src="https://api.gitsponsors.com/api/badge/img?id=685096188" height="20">](https://api.gitsponsors.com/api/badge/link?p=HNnVIAYtDk6Q8P0B9KDyRlGc/MWFCkqf3nGDuitPmZebtIiIBP9989R/s5F7dfdG0CDRZA3r0LqOv2tSRfuFMANqjru6bWCkqZs8zPjpJDwfawZRwpq4WSA3GlmaayD7qXIy9lhq0LTukrGgkVXMIQ==)
 ![GitHub](https://img.shields.io/github/license/framist/SAFC-bot?style=flat-square)
 ![GitHub Created At](https://img.shields.io/github/created-at/framist/SAFC-bot?style=flat-square&color=lightgrey)
 ![GitHub Repo stars](https://img.shields.io/github/stars/framist/SAFC-bot?style=flat-square)
@@ -80,6 +79,10 @@
 ## 赞助
 
 如果此项目对你有任何帮助，我们都倍感荣幸。你的⭐就是最大的鼓励和赞助 🌟✨
+
+**Sponsorship**
+
+[<img src="https://api.gitsponsors.com/api/badge/img?id=685096188" height="20">](https://api.gitsponsors.com/api/badge/link?p=HNnVIAYtDk6Q8P0B9KDyRlGc/MWFCkqf3nGDuitPmZebtIiIBP9989R/s5F7dfdGV8nQqKl0enZyt185BTiqJgz5X4uKTxvb03PQdfE18dg/fJfBVCBL4xeMoQ0WWDjxCTKKxM328PFKhiKKUTGUIg==)
 
 ---
 
