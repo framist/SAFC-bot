@@ -52,6 +52,8 @@ async fn main() {
     bot.set_my_commands(Command::bot_commands()) // 向 telegram 注册命令
         .await
         .expect("Failed to set bot commands to telegram");
+    
+    log::info!("Bot commands have been set");
 
     Dispatcher::builder(bot, schema())
         .dependencies(dptree::deps![InMemStorage::<State>::new()])

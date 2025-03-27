@@ -45,7 +45,7 @@ use safc::db::*;
 use safc::sec;
 
 const PORT: u16 = 11096;
-const MAX_POST_PER_DAY: u64 = 20; // 每 IP 每天最多 20 次 POST 请求
+const MAX_POST_PER_DAY: u64 = 4096; // 每 IP 每天最多 4096 次 POST 请求
 
 lazy_static! {
     static ref BLOCK_DB: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
@@ -263,7 +263,7 @@ async fn main() -> io::Result<()> {
             .per_second(100) // 每秒请求数提高到 100
             .burst_size(1000) // 突发请求上限提高到 1000
             .finish()
-            .unwrap();
+            .unwrap(); // TODO 根据 X-Real-IP
 
         let cors = Cors::default()
             .allow_any_origin() // 允许任何源
@@ -275,7 +275,7 @@ async fn main() -> io::Result<()> {
         App::new()
             .wrap(from_fn(block_middleware))
             .wrap(cors)
-            .wrap(Governor::new(&governor_conf)) // 添加限流中间件
+            // .wrap(Governor::new(&governor_conf)) // 添加限流中间件
             .app_data(web::Data::new(db.clone()))
             .service(hello)
             .service(api_query)
