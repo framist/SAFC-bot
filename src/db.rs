@@ -472,9 +472,16 @@ impl SAFCdb {
             |row| row.get(0),
         )?;
 
+        // 计算项目存续时间
+        let project_start = chrono::NaiveDate::parse_from_str("2023-08-30", "%Y-%m-%d").unwrap();
+        let today = chrono::Local::now().date_naive();
+        let duration = today.signed_duration_since(project_start);
+        let days = duration.num_days();
+        let duration_str = format!("{} 天", days);
+
         Ok(format!(
-            "评价总数：{}, 实体客体总数：{}, 月新增客体数：{}, 月增评价数：{}",
-            c_count, o_count, o_new, m_new
+            "评价总数：{}, 实体客体总数：{}, 月新增客体数：{}, 月增评价数：{}, 项目存续时间：{}",
+            c_count, o_count, o_new, m_new, duration_str
         ))
     }
 }
@@ -488,7 +495,7 @@ pub fn get_current_date() -> String {
 #[test]
 fn test_find_object() {
     let db = SAFCdb::new();
-    let s = &"习__".to_string();
+    let s = &"赵__".to_string();
     let result = db.find_supervisor_like(s);
     println!("{:#?}", result);
 }
@@ -503,7 +510,7 @@ fn test_if_object_exists() {
 #[test]
 fn test_find_comment_like() {
     let db = SAFCdb::new();
-    let comments = db.find_comment_like(&"%习大大%".to_string());
+    let comments = db.find_comment_like(&"%cxk%".to_string());
     println!("{:#?}", comments);
 }
 
