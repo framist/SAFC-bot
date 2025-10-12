@@ -44,6 +44,16 @@ WantedBy=multi-user.target
 
 前端使用 `next.js` 开发，采用`git submodule`的方式集成，`submodule`路径为[web](../web), 仓库为 [safc-web](https://github.com/ToniXWD/safc-web)
 
+## 持续集成（CI）
+
+项目使用 GitHub Actions 执行基础的格式化、静态检查与测试流程。提交前请至少手动运行以下命令，避免破坏 CI：
+
+- `cargo fmt`：保持 Rust 代码风格一致
+- `cargo clippy --all-targets --all-features`：提前发现潜在问题
+- `cargo test --all`：确认现有功能未被破坏
+
+对于前端改动，请在 `web/` 子仓库执行 `npm install` 后运行 `npm run lint` 与 `npm test`。如需调试失败的 CI，请参考 `.github/workflows/` 中的配置文件获取完整命令。
+
 ## 核心库 `lib`
 
 ### 数据库 `db`

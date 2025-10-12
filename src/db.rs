@@ -38,9 +38,7 @@
 //! salt: SAFC_salt
 //!
 //!
-//! TODO 转换为严格的关系型数据库，目前为了敏捷开发，使用 ~2NF
-//!
-//! TODO 备份与发布
+//! TODO？转换为严格的关系型数据库，目前为了敏捷开发，使用 ~2NF
 //!
 //! TODO 区块链、分布式数据库？- 基于 telegram 通讯
 //!
@@ -74,7 +72,7 @@ pub enum SourceCate {
     Urfire,
     /// 来自 SAFC 的 telegram 平台数据
     Telegram,
-    /// 来自 SAFC 的 web 平台数据（暂无，平台未提供）
+    /// 来自 SAFC 的 web 平台数据
     Web,
     /// 来自 pi-review.com 数据 截止至 2023-09-26
     PiReview,
