@@ -26,3 +26,11 @@
 - [@SAFC_bak_bot](https://t.me/SAFC_bak_bot)
 - ~~[@SAFC_bot](https://t.me/SAFC_bot)~~
 
+### 机器人常用命令
+
+- `/start`：启动会话并进入功能菜单。
+- `/find 客体 <关键字...>` 或 `/find 评价 <关键字...>`：快速检索导师或评价。
+- `/comment <客体ID>`：对指定客体提交新评价。
+- `/del <评价ID> <发布人 OTP>`：删除自己发布的评价；通过 OTP 签名校验后需回复“确认删除”完成操作。
+- `/downloaddb`：下载当前公开的数据库快照。
+- `/cancel`：随时终止当前会话。

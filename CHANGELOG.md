@@ -22,4 +22,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 2023-10-13 完成开始功能选择中的「快搜教师」和「快搜评论」功能
 - 2023-10-20 修正下标溢出 bug
 - 2024-09-23 优化使用时的帮助说明
+- 2025-10-12 增加了 /del 命令，可以删除自己的评论
 - 正在进行：web 端开发重构，更多功能加入

@@ -97,6 +97,9 @@ pub enum State {
         comment: String,
         comment_type: CommentType,
     },
+    DeleteConfirm {
+        comment_id: String,
+    },
     /// 分页显示回调状态
     PagingCb {
         data: PagingCbData,

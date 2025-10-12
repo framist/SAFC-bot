@@ -40,6 +40,8 @@ enum Command {
     Comment(String),
     #[command(description = "搜索")]
     Find(String),
+    #[command(description = "删除评价")]
+    Del(String),
 }
 
 #[tokio::main]
@@ -52,7 +54,7 @@ async fn main() {
     bot.set_my_commands(Command::bot_commands()) // 向 telegram 注册命令
         .await
         .expect("Failed to set bot commands to telegram");
-    
+
     log::info!("Bot commands have been set");
 
     Dispatcher::builder(bot, schema())
@@ -78,6 +80,7 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(case![Command::DownloadDb].endpoint(download_db_command))
         .branch(case![Command::Find(arg)].endpoint(find_command))
         .branch(case![Command::Comment(arg)].endpoint(comment_command))
+        .branch(case![Command::Del(arg)].endpoint(delete_comment_command))
         .branch(dptree::endpoint(invalid_command));
 
     // 文本消息
@@ -90,7 +93,8 @@ fn schema() -> UpdateHandler<Box<dyn std::error::Error + Send + Sync + 'static>>
         .branch(case![State::Department { school_cate, university }].endpoint(choose_supervisor))
         .branch(case![State::Supervisor { school_cate, university, department }].endpoint(read_or_comment))
         .branch(case![State::Comment { object_id, comment_type }].endpoint(add_comment))
-        .branch(case![State::Publish { object_id, comment, comment_type }].endpoint(publish_comment));
+        .branch(case![State::Publish { object_id, comment, comment_type }].endpoint(publish_comment))
+        .branch(case![State::DeleteConfirm { comment_id }].endpoint(confirm_delete_comment));
 
     // 消息
     let message_handler = Update::filter_message()
@@ -194,6 +198,90 @@ async fn find_command(bot: Bot, dialogue: MyDialogue, arg: String, msg: Message)
             您也可以使用 /start 中的功能按钮使用这些功能",
     )
     .await?;
+    Ok(())
+}
+
+/// 删除评价命令
+async fn delete_comment_command(
+    bot: Bot,
+    dialogue: MyDialogue,
+    arg: String,
+    msg: Message,
+) -> HandlerResult {
+    let parts: Vec<&str> = arg.split_whitespace().collect();
+
+    if parts.len() != 2 {
+        bot.send_message(
+            msg.chat.id,
+            "使用方法：\n/del <评价 ID> <发布人 OTP>\n示例：/del ab12cd34 xxxxxxxx",
+        )
+        .reply_to_message_id(msg.id)
+        .await?;
+        return Ok(());
+    }
+
+    let comment_id = parts[0].to_string();
+    let otp = parts[1].to_string();
+
+    let comment = match SAFC_DB.find_comment_by_id(&comment_id)? {
+        Some(c) => c,
+        None => {
+            bot.send_message(
+                msg.chat.id,
+                format!("未找到评价 `{}`。请检查评价 ID。", comment_id),
+            )
+            .reply_to_message_id(msg.id)
+            .await?;
+            return Ok(());
+        }
+    };
+
+    let author_sign = match comment.author_sign.as_ref() {
+        Some(sign) => sign,
+        None => {
+            bot.send_message(
+                msg.chat.id,
+                "该评价未设置 OTP，暂不支持自行删除。",
+            )
+            .reply_to_message_id(msg.id)
+            .await?;
+            return Ok(());
+        }
+    };
+
+    let expected_sign = hash_author_sign(&comment_id, &otp);
+    if author_sign != &expected_sign {
+        bot.send_message(
+            msg.chat.id,
+            "签名验证失败。请确认评价 ID 与 OTP 是否正确。",
+        )
+        .reply_to_message_id(msg.id)
+        .await?;
+        return Ok(());
+    }
+
+    let object_info = match SAFC_DB.find_objteacher_with_id(comment.object.as_str())? {
+        Some(obj) => obj.display_path(),
+        None => format!("客体 ID {}", comment.object),
+    };
+
+    let comment_body = escape(comment.description.as_str());
+    let comment_type_label = comment.comment_type.to_string();
+    let confirm_message = format!(
+        "评价 ID `{}`\n对象：{}\n日期：{}\n类型：{}\n\n```text\n{}\n```\n\n签名验证成功。\n请回复「确认删除」以继续，或发送 /cancel 终止此操作。",
+        escape(comment_id.as_str()),
+        escape(object_info.as_str()),
+        escape(comment.date.as_str()),
+        escape(comment_type_label.as_str()),
+        comment_body
+    );
+
+    bot.send_message(msg.chat.id, confirm_message)
+        .reply_to_message_id(msg.id)
+        .parse_mode(MarkdownV2)
+        .await?;
+
+    dialogue.update(State::DeleteConfirm { comment_id }).await?;
     Ok(())
 }
 
@@ -990,6 +1078,55 @@ async fn publish_comment(
         bot.send_message(msg.chat.id, TgResponse::RetryErrNone.to_string())
             .await?;
     }
+    Ok(())
+}
+
+/// 删除评价确认处理
+async fn confirm_delete_comment(
+    bot: Bot,
+    dialogue: MyDialogue,
+    comment_id: String,
+    msg: Message,
+) -> HandlerResult {
+    let text = match msg.text() {
+        Some(t) => t.trim(),
+        None => {
+            bot.send_message(
+                msg.chat.id,
+                "未识别的输入。请回复「确认删除」，或使用 /cancel 取消操作。",
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+
+    if text != "确认删除" {
+        bot.send_message(
+            msg.chat.id,
+            "如需删除，请回复「确认删除」。若不再需要删除，可使用 /cancel 结束操作。",
+        )
+        .await?;
+        return Ok(());
+    }
+
+    match SAFC_DB.delete_comment(&comment_id)? {
+        true => {
+            bot.send_message(
+                msg.chat.id,
+                format!("评价 `{}` 已删除。感谢您的更新！", comment_id),
+            )
+            .await?;
+        }
+        false => {
+            bot.send_message(
+                msg.chat.id,
+                "评价不存在或已被删除。",
+            )
+            .await?;
+        }
+    }
+
+    dialogue.update(State::Start).await?;
     Ok(())
 }
 

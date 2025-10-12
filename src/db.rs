@@ -383,6 +383,28 @@ impl SAFCdb {
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
+    /// 根据评价 id 定位单条评价
+    pub fn find_comment_by_id(&self, comment_id: &String) -> HandlerResult<Option<ObjComment>> {
+        let conn = self.pool.clone().get()?;
+
+        let mut stmt = conn.prepare("SELECT * FROM comments WHERE id = ?")?;
+        let mut rows = stmt.query([comment_id])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(ObjComment {
+                object: row.get::<_, String>(0)?,
+                description: row.get::<_, String>(1)?,
+                date: row.get::<_, String>(2)?,
+                source_cate: SourceCate::from_str(row.get::<_, String>(3)?.as_str()).unwrap(),
+                comment_type: CommentType::from_str(row.get::<_, String>(4)?.as_str()).unwrap(),
+                author_sign: row.get::<_, String>(5).ok(),
+                id: row.get::<_, String>(6)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// 查找评价 - like 方式
     pub fn find_comment_like(&self, s: &String) -> HandlerResult<Vec<ObjComment>> {
         let conn = self.pool.clone().get()?;
@@ -423,6 +445,13 @@ impl SAFCdb {
         )?;
 
         Ok(())
+    }
+
+    /// 删除评价
+    pub fn delete_comment(&self, comment_id: &String) -> HandlerResult<bool> {
+        let conn = self.pool.clone().get()?;
+        let affected = conn.execute("DELETE FROM comments WHERE id = ?", [comment_id])?;
+        Ok(affected > 0)
     }
 
     /// 增加评价
