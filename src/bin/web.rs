@@ -46,6 +46,24 @@ use safc::sec;
 
 const PORT: u16 = 11096;
 const MAX_POST_PER_DAY: u64 = 4096; // 每 IP 每天最多 4096 次 POST 请求
+const SUPPRESSED_OBJECT_MESSAGE: &str = "教师信息已删除";
+
+/// 人工抑制显示：仅影响 Web API 展示
+const SUPPRESSED_OBJECTS: &[(&str, &str)] = &[
+    // 2026-08-30 被评价人申诉
+    // comment_id: 2104ee0dc4d85002
+    ("d70f0a5dd19bedf6", "胡青松"),
+];
+
+fn is_suppressed_object(object_id: &str) -> bool {
+    SUPPRESSED_OBJECTS.iter().any(|(id, _)| *id == object_id)
+}
+
+fn is_suppressed_supervisor(supervisor: &str) -> bool {
+    SUPPRESSED_OBJECTS
+        .iter()
+        .any(|(_, name)| *name == supervisor)
+}
 
 lazy_static! {
     static ref BLOCK_DB: Mutex<HashMap<String, u64>> = Mutex::new(HashMap::new());
@@ -119,14 +137,20 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
         );
     }
     if q.supervisor.is_none() {
-        return HttpResponse::Ok().json(
-            db.find_supervisor(
+        let supervisors = db
+            .find_supervisor(
                 &q.school_cate.unwrap(),
                 &q.university.unwrap(),
                 &q.department.unwrap(),
             )
-            .unwrap(),
-        );
+            .unwrap();
+
+        let supervisors: Vec<_> = supervisors
+            .into_iter()
+            .filter(|name| !is_suppressed_supervisor(name))
+            .collect();
+
+        return HttpResponse::Ok().json(supervisors);
     }
     let obj_teacher = match db
         .find_object_with_path(
@@ -141,6 +165,11 @@ async fn api_query(db: web::Data<SAFCdb>, item: web::Query<ApiQuery>) -> impl Re
             return HttpResponse::NotFound().json("教师信息未找到");
         }
     };
+
+    if is_suppressed_object(&obj_teacher.object_id) {
+        return HttpResponse::NotFound().json(SUPPRESSED_OBJECT_MESSAGE);
+    }
+
     HttpResponse::Ok().json(db.find_comment(&obj_teacher.object_id).unwrap())
     // todo 这里需初步的格式化一下以显示嵌套评价
 }
@@ -179,6 +208,10 @@ async fn new_comment(db: web::Data<SAFCdb>, form: web::Json<CreateCommentReq>) -
                 }
             },
         };
+
+    if is_suppressed_object(&exist_teacher.object_id) {
+        return HttpResponse::NotFound().json(SUPPRESSED_OBJECT_MESSAGE);
+    }
 
     let obj_comment = ObjComment::new_with_otp(
         exist_teacher.object_id,
@@ -285,4 +318,22 @@ async fn main() -> io::Result<()> {
     .bind(("127.0.0.1", PORT))?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identifies_suppressed_object() {
+        assert!(is_suppressed_object("d70f0a5dd19bedf6"));
+        assert!(!is_suppressed_object("2104ee0dc4d85002"));
+        assert!(!is_suppressed_object("unknown"));
+    }
+
+    #[test]
+    fn identifies_suppressed_supervisor() {
+        assert!(is_suppressed_supervisor("胡青松"));
+        assert!(!is_suppressed_supervisor("其他导师"));
+    }
 }
